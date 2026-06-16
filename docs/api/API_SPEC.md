@@ -2,7 +2,7 @@
 
 Version: v0.1.0-alpha
 
-Stage: Phase 0 - Repository Foundation
+Stage: Sprint 002 - Domain Intelligence Engine
 
 Base path: `/api/v1`
 
@@ -17,7 +17,8 @@ Scope: Domain Intelligence only
 - APIs must validate input before processing.
 - APIs must not expose secrets, stack traces, or raw credentials.
 - v0.1 APIs are synchronous unless a future roadmap item changes that decision.
-- Phase 0 implements only the health endpoint.
+- Sprint 002 implements the health endpoint and Domain Intelligence search endpoint.
+- Report retrieval remains planned until a later sprint.
 
 ---
 
@@ -137,7 +138,7 @@ If the service is unavailable, clients may receive:
 
 Runs passive Domain Intelligence analysis for a domain.
 
-Status: Planned for v0.1 Domain Intelligence implementation. Not part of Phase 0 implementation.
+Status: Implemented in Sprint 002.
 
 ### Request Example
 
@@ -205,6 +206,10 @@ Status: `200 OK`
 }
 ```
 
+### Persistence
+
+A successful response is persisted to PostgreSQL before the API returns `200 OK`.
+
 ### Error Example
 
 Status: `422 Unprocessable Entity`
@@ -234,7 +239,7 @@ Status: `422 Unprocessable Entity`
 
 Returns a stored Domain Intelligence report.
 
-Status: Planned for v0.1 Domain Intelligence implementation. Not part of Phase 0 implementation.
+Status: Planned for a later sprint. Not implemented in Sprint 002.
 
 ### Request Example
 

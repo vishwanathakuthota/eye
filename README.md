@@ -2,17 +2,23 @@
 
 Search Anything. Understand Everything.
 
-Eye is an AI-native intelligence search engine. The current repository state is Sprint 001: a local development foundation for the v0.1 Domain Intelligence alpha.
+Eye is an AI-native intelligence search engine. The current repository state is Sprint 002: the v0.1 Domain Intelligence engine.
 
-This sprint includes only the repository skeleton:
+This sprint includes:
 
 - FastAPI backend with `GET /api/v1/health`
+- Domain Intelligence endpoint at `GET /api/v1/domain?domain=<domain>`
+- Domain validation
+- DNS lookup
+- RDAP lookup
+- crt.sh certificate transparency lookup
+- Risk scoring
+- Intelligence summary generation
+- PostgreSQL persistence
 - Next.js TypeScript frontend landing page
-- PostgreSQL local service through Docker Compose
-- Environment configuration example
-- Minimal backend health test
+- Unit and API tests
 
-Domain Intelligence, RDAP, DNS, crt.sh, reports, authentication, Redis, Celery, Neo4j, OpenSearch, and AI agents are intentionally not implemented in Sprint 001.
+IP Intelligence, Threat Intelligence, authentication, Reports UI, Redis, Celery, Neo4j, OpenSearch, and AI agents are intentionally not implemented in Sprint 002.
 
 ## Requirements
 
@@ -45,6 +51,7 @@ python -m pip install -e ".[dev]"
 Run the backend:
 
 ```bash
+alembic upgrade head
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
@@ -52,6 +59,12 @@ Check health:
 
 ```bash
 curl http://localhost:8000/api/v1/health
+```
+
+Analyze a domain:
+
+```bash
+curl "http://localhost:8000/api/v1/domain?domain=example.com"
 ```
 
 ## Frontend
@@ -111,25 +124,25 @@ npm run lint
 npm run build
 ```
 
-## Sprint 001 Scope
+## Sprint 002 Scope
 
 Allowed:
 
-- Backend skeleton
-- Frontend skeleton
-- Docker Compose local stack
-- Environment configuration
-- Health endpoint
-- Landing page
-- Basic local run documentation
+- Domain Search Endpoint
+- Domain Validation
+- DNS Lookup Service
+- RDAP Lookup Service
+- crt.sh Integration
+- Risk Scoring Engine
+- Intelligence Summary Generator
+- PostgreSQL Persistence
+- Unit Tests
+- API Tests
 
 Not allowed:
 
-- Domain Intelligence logic
-- DNS lookup
-- RDAP lookup
-- crt.sh integration
-- Report generation or retrieval implementation
+- IP Intelligence
+- Threat Intelligence
+- Reports UI
 - Authentication
-- Threat intelligence connectors
 - Redis, Celery, Neo4j, OpenSearch, Kubernetes, or AI agents

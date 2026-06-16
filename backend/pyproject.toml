@@ -4,8 +4,13 @@ version = "0.1.0"
 description = "Project Eye FastAPI backend foundation."
 requires-python = ">=3.12"
 dependencies = [
+  "alembic>=1.13.2,<2.0.0",
+  "dnspython>=2.7.0,<3.0.0",
   "fastapi>=0.115.0,<1.0.0",
+  "httpx>=0.27.0,<1.0.0",
+  "psycopg[binary]>=3.2.1,<4.0.0",
   "pydantic-settings>=2.4.0,<3.0.0",
+  "sqlalchemy>=2.0.32,<3.0.0",
   "uvicorn[standard]>=0.30.6,<1.0.0"
 ]
 
