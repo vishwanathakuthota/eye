@@ -40,10 +40,17 @@ Code Second
 
 Never generate code before understanding:
 
-* PRD.md
-* Architecture
-* Current Sprint
-* Open Issues
+1. docs/product/PRD.md
+2. docs/product/ROADMAP.md
+3. docs/product/TASKS.md
+4. docs/architecture/ARCHITECTURE.md
+5. docs/api/API_SPEC.md
+6. docs/security/SECURITY.md
+7. docs/releases/DEPLOYMENT_CHECKLIST.md
+8. .codex/PROJECT_RULES.md
+9. .codex/ARCHITECT_RULES.md
+10. .codex/SECURITY_RULES.md
+11. .codex/RELEASE_RULES.md
 
 ⸻
 
@@ -212,6 +219,10 @@ API documentation
 
 Architecture documentation
 
+Security documentation
+
+Release documentation
+
 ⸻
 
 Coding Standards
@@ -287,10 +298,19 @@ AI Agent Instructions
 
 Before generating code:
 
-1. Read PRD.md
-2. Read PROJECT_RULES.md
-3. Identify current sprint
-4. Implement only requested scope
+1. Read docs/product/PRD.md
+2. Read docs/product/ROADMAP.md
+3. Read docs/product/TASKS.md
+4. Read docs/architecture/ARCHITECTURE.md
+5. Read docs/api/API_SPEC.md
+6. Read docs/security/SECURITY.md
+7. Read docs/releases/DEPLOYMENT_CHECKLIST.md
+8. Read .codex/PROJECT_RULES.md
+9. Read .codex/ARCHITECT_RULES.md
+10. Read .codex/SECURITY_RULES.md
+11. Read .codex/RELEASE_RULES.md
+12. Identify current sprint
+13. Implement only requested scope
 
 Never:
 
