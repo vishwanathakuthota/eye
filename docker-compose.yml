@@ -1,0 +1,54 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: eye-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-eye}
+      POSTGRES_USER: ${POSTGRES_USER:-eye}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-eye_password}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-eye} -d ${POSTGRES_DB:-eye}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend
+    container_name: eye-backend
+    restart: unless-stopped
+    environment:
+      EYE_APP_ENV: ${EYE_APP_ENV:-development}
+      EYE_API_CORS_ORIGINS: ${EYE_API_CORS_ORIGINS:-http://localhost:3000}
+      EYE_DATABASE_URL: ${EYE_DATABASE_URL:-postgresql+psycopg://eye:eye_password@postgres:5432/eye}
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/v1/health', timeout=5)"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  frontend:
+    build:
+      context: ./frontend
+    container_name: eye-frontend
+    restart: unless-stopped
+    environment:
+      NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://localhost:8000/api/v1}
+    ports:
+      - "3000:3000"
+    depends_on:
+      backend:
+        condition: service_healthy
+
+volumes:
+  postgres-data:
