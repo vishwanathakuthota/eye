@@ -2,7 +2,7 @@
 
 Version: v0.1.0-alpha
 
-Stage: Milestone 3 - Report History & Retrieval
+Stage: Exportable Investigation Reports
 
 Base path: `/api/v1`
 
@@ -20,6 +20,7 @@ Scope: Domain and IP Intelligence
 - Sprint 002 implements the health endpoint and Domain Intelligence search endpoint.
 - Milestone 2 implements the IP Intelligence search endpoint.
 - Milestone 3 implements report history and retrieval for Domain and IP reports.
+- Exportable Investigation Reports implements JSON and HTML export for stored reports.
 
 ---
 
@@ -578,6 +579,102 @@ Status: `422 Unprocessable Entity`
 
 ---
 
+## GET /api/v1/reports/{report_id}/export/json
+
+Exports a stored Domain or IP report as a JSON investigation document.
+
+Status: Implemented in Exportable Investigation Reports.
+
+### Request Example
+
+```bash
+curl "http://localhost:8000/api/v1/reports/rep_123/export/json"
+```
+
+### Response Example
+
+Status: `200 OK`
+
+Headers:
+
+```http
+Content-Type: application/json
+Content-Disposition: attachment; filename="eye-rep_123.json"
+```
+
+```json
+{
+  "metadata": {
+    "product": "Eye",
+    "exported_at": "2026-06-17T00:00:00Z",
+    "format": "json",
+    "report_id": "rep_123",
+    "type": "domain",
+    "target": "example.com",
+    "created_at": "2026-06-16T00:00:00Z"
+  },
+  "report": {
+    "report_id": "rep_123",
+    "domain": "example.com",
+    "risk": {
+      "score": 20,
+      "level": "Low",
+      "reasons": [],
+      "confidence": 100,
+      "reliability_notes": []
+    },
+    "summary": "Passive domain intelligence summary.",
+    "dns": {},
+    "rdap": {},
+    "certificates": [],
+    "subdomains": [],
+    "sources": [],
+    "created_at": "2026-06-16T00:00:00Z"
+  }
+}
+```
+
+Unknown report IDs return `REPORT_NOT_FOUND`. Invalid report IDs return `REPORT_INVALID`.
+
+---
+
+## GET /api/v1/reports/{report_id}/export/html
+
+Exports a stored Domain or IP report as a printable HTML executive investigation report.
+
+Status: Implemented in Exportable Investigation Reports.
+
+### Request Example
+
+```bash
+curl "http://localhost:8000/api/v1/reports/rep_123/export/html"
+```
+
+### Response Example
+
+Status: `200 OK`
+
+Headers:
+
+```http
+Content-Type: text/html; charset=utf-8
+Content-Disposition: inline; filename="eye-rep_123.html"
+```
+
+The HTML response contains:
+
+- Report metadata.
+- Risk score, level, confidence, risk reasons, and reliability notes.
+- Executive summary.
+- Domain findings or IP findings depending on report type.
+- Source status.
+
+HTML export output must escape report data before rendering it into markup.
+
+Unknown report IDs return `REPORT_NOT_FOUND`. Invalid report IDs return `REPORT_INVALID`.
+
+---
+
 ## Validation Rules
 
 ### Domain Validation
@@ -638,6 +735,8 @@ The `report_id` path parameter must:
 - Reject path traversal sequences.
 - Reject whitespace.
 
+Report export endpoints use the same report ID validation rules.
+
 ### Report Pagination Validation
 
 The `GET /api/v1/reports` query parameters must:
@@ -652,7 +751,7 @@ The `GET /api/v1/reports` query parameters must:
 
 | Status | Meaning | Usage |
 | --- | --- | --- |
-| `200 OK` | Successful request | Health, domain analysis, IP analysis, report retrieval |
+| `200 OK` | Successful request | Health, domain analysis, IP analysis, report retrieval, report export |
 | `400 Bad Request` | Invalid request shape | Missing or malformed request |
 | `404 Not Found` | Resource not found | Report ID does not exist |
 | `408 Request Timeout` | Request timed out | Analysis or dependency timeout |

@@ -1,15 +1,17 @@
 from __future__ import annotations
 
 import logging
+import re
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Path, Query, status
-from fastapi.responses import JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse, Response
 from sqlalchemy.orm import Session
 
-from app.api.v1.dependencies import get_report_history_service
+from app.api.v1.dependencies import get_report_export_service, get_report_history_service
 from app.core.responses import error_response, success_response
 from app.db.session import get_db
+from app.services.report_export import ReportExportService
 from app.services.report_history import (
     ReportHistoryService,
     ReportNotFoundError,
@@ -18,6 +20,7 @@ from app.services.report_history import (
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
+SAFE_FILENAME_PATTERN = re.compile(r"[^A-Za-z0-9_.-]+")
 
 
 @router.get("/reports")
@@ -72,3 +75,94 @@ def get_report(
         status_code=status.HTTP_200_OK,
         content=success_response(result.model_dump(mode="json")),
     )
+
+
+@router.get("/reports/{report_id}/export/json")
+def export_report_json(
+    report_id: Annotated[str, Path(min_length=1, max_length=84)],
+    db: Annotated[Session, Depends(get_db)],
+    report_history: Annotated[
+        ReportHistoryService,
+        Depends(get_report_history_service),
+    ],
+    report_export: Annotated[
+        ReportExportService,
+        Depends(get_report_export_service),
+    ],
+) -> JSONResponse:
+    try:
+        result = report_history.get_report(db=db, report_id=report_id)
+    except ReportValidationError as exc:
+        logger.info("report_export_validation_failed", extra={"source": "reports"})
+        return JSONResponse(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            content=error_response(
+                code="REPORT_INVALID",
+                message=str(exc),
+                details={"field": "report_id"},
+            ),
+        )
+    except ReportNotFoundError as exc:
+        return JSONResponse(
+            status_code=status.HTTP_404_NOT_FOUND,
+            content=error_response(
+                code="REPORT_NOT_FOUND",
+                message=str(exc),
+                details={"report_id": report_id},
+            ),
+        )
+
+    filename = _export_filename(result.report_id, "json")
+    return JSONResponse(
+        status_code=status.HTTP_200_OK,
+        content=report_export.build_json_export(result),
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+@router.get("/reports/{report_id}/export/html")
+def export_report_html(
+    report_id: Annotated[str, Path(min_length=1, max_length=84)],
+    db: Annotated[Session, Depends(get_db)],
+    report_history: Annotated[
+        ReportHistoryService,
+        Depends(get_report_history_service),
+    ],
+    report_export: Annotated[
+        ReportExportService,
+        Depends(get_report_export_service),
+    ],
+) -> Response:
+    try:
+        result = report_history.get_report(db=db, report_id=report_id)
+    except ReportValidationError as exc:
+        logger.info("report_export_validation_failed", extra={"source": "reports"})
+        return JSONResponse(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            content=error_response(
+                code="REPORT_INVALID",
+                message=str(exc),
+                details={"field": "report_id"},
+            ),
+        )
+    except ReportNotFoundError as exc:
+        return JSONResponse(
+            status_code=status.HTTP_404_NOT_FOUND,
+            content=error_response(
+                code="REPORT_NOT_FOUND",
+                message=str(exc),
+                details={"report_id": report_id},
+            ),
+        )
+
+    filename = _export_filename(result.report_id, "html")
+    return HTMLResponse(
+        status_code=status.HTTP_200_OK,
+        content=report_export.build_html_export(result),
+        headers={"Content-Disposition": f'inline; filename="{filename}"'},
+    )
+
+
+def _export_filename(report_id: str, extension: str) -> str:
+    safe_report_id = SAFE_FILENAME_PATTERN.sub("-", report_id).strip("-")
+    return f"eye-{safe_report_id}.{extension}"
