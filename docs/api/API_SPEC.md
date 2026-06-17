@@ -165,7 +165,9 @@ Status: `200 OK`
     "risk": {
       "score": 20,
       "level": "Low",
-      "reasons": []
+      "reasons": [],
+      "confidence": 100,
+      "reliability_notes": []
     },
     "summary": "Passive domain intelligence summary.",
     "dns": {
@@ -184,15 +186,24 @@ Status: `200 OK`
     "sources": [
       {
         "name": "dns",
-        "status": "completed"
+        "status": "completed",
+        "error": null,
+        "error_type": null,
+        "status_code": null
       },
       {
         "name": "rdap",
-        "status": "completed"
+        "status": "completed",
+        "error": null,
+        "error_type": null,
+        "status_code": null
       },
       {
         "name": "crt.sh",
-        "status": "completed"
+        "status": "completed",
+        "error": null,
+        "error_type": null,
+        "status_code": null
       }
     ],
     "created_at": "2026-06-16T00:00:00Z"
@@ -209,6 +220,28 @@ Status: `200 OK`
 ### Persistence
 
 A successful response is persisted to PostgreSQL before the API returns `200 OK`.
+
+### Source Reliability
+
+Domain analysis responses include source status metadata so clients can distinguish observed intelligence from upstream source reliability issues.
+
+Source status values:
+
+- `completed`: Source returned a usable response.
+- `partial`: Source returned usable data, but the response was capped or incomplete.
+- `failed`: Source did not return usable data.
+
+Source failure `error_type` values:
+
+- `not_found`: Source completed the lookup and found no matching record.
+- `timeout`: Source timed out.
+- `rate_limited`: Source returned a rate-limit response.
+- `server_error`: Source returned a 5xx response.
+- `http_error`: Source returned another non-success HTTP response.
+- `invalid_response`: Source returned malformed or unexpected data.
+- `unexpected_error`: Source failed unexpectedly.
+
+Risk scoring remains focused on observed intelligence. Transient source failures such as timeouts, rate limits, and upstream server errors should be represented in `sources` and `risk.reliability_notes`; they should not be treated as strong security findings. `risk.confidence` is a 0-100 indicator of how complete the source coverage was for the score.
 
 ### Error Example
 
@@ -266,7 +299,9 @@ Status: `200 OK`
     "risk": {
       "score": 20,
       "level": "Low",
-      "reasons": []
+      "reasons": [],
+      "confidence": 100,
+      "reliability_notes": []
     },
     "summary": "Passive domain intelligence summary.",
     "dns": {},

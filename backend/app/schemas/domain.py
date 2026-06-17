@@ -7,12 +7,23 @@ from pydantic import BaseModel, Field
 
 RiskLevel = Literal["Low", "Medium", "High", "Critical"]
 SourceStatus = Literal["completed", "partial", "failed"]
+SourceErrorType = Literal[
+    "not_found",
+    "timeout",
+    "rate_limited",
+    "server_error",
+    "http_error",
+    "invalid_response",
+    "unexpected_error",
+]
 
 
 class SourceStatusItem(BaseModel):
     name: str
     status: SourceStatus
     error: str | None = None
+    error_type: SourceErrorType | None = None
+    status_code: int | None = None
 
 
 class DnsRecordSet(BaseModel):
@@ -40,6 +51,8 @@ class RiskResult(BaseModel):
     score: int = Field(ge=0, le=100)
     level: RiskLevel
     reasons: list[str] = Field(default_factory=list)
+    confidence: int = Field(default=100, ge=0, le=100)
+    reliability_notes: list[str] = Field(default_factory=list)
 
 
 class DomainAnalysisResult(BaseModel):
