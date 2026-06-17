@@ -74,6 +74,7 @@ h2,
 h3,
 p {
   overflow-wrap: anywhere;
+}
 .shell {
   min-height: 100vh;
   display: grid;
@@ -445,6 +446,21 @@ h1 {
   color: var(--danger);
 }
 
+.footer {
+  justify-self: center;
+  margin-top: 32px;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.5;
+  text-align: center;
+}
+
+.brandline {
+  margin-top: 8px;
+  color: var(--muted);
+  font-size: 14px;
+}
+
 @keyframes loading-slide {
   0% {
     transform: translateX(-110%);
@@ -481,13 +497,7 @@ h1 {
   .dns-grid,
   .key-value-item {
     grid-template-columns: 1fr;
-.footer {
-  justify-self: center;
-  margin-top: 32px;
-  color: var(--muted);
-  font-size: 14px;
-  line-height: 1.5;
-  text-align: center;
+  }
 }
 
 @media (max-width: 520px) {

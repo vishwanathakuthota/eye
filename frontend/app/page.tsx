@@ -96,6 +96,7 @@ export default function Home() {
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+
     if (!normalizedDomain) {
       setQuery({
         status: "error",
@@ -117,6 +118,7 @@ export default function Home() {
           },
         },
       );
+
       const body = (await response.json()) as ApiResponse<DomainAnalysis>;
 
       if (!response.ok || !body.success) {
@@ -142,11 +144,9 @@ export default function Home() {
     <main className="dashboard-shell">
       <header className="topbar">
         <div>
-          <p className="version">v0.1.0-alpha</p>
-          <h1>Eye</h1>
+          <h1>EYE</h1>
           <p className="tagline">Search Anything. Understand Everything.</p>
         </div>
-        <div className="api-chip">Domain Intelligence</div>
       </header>
 
       <section className="search-panel" aria-label="Domain search">
@@ -175,11 +175,7 @@ export default function Home() {
       {!hasResult && query.status === "idle" ? <EmptyState /> : null}
 
       {hasResult ? <DashboardResult result={query.result} /> : null}
-    <main className="shell">
-      <section className="intro" aria-labelledby="product-name">
-        <h1 id="product-name">Eye</h1>
-        <p className="tagline">Search Anything. Understand Everything.</p>
-      </section>
+
       <footer className="footer">A product by DrPinnacle</footer>
     </main>
   );
