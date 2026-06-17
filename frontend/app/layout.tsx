@@ -3,7 +3,7 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "Project Eye",
-  description: "AI-native intelligence search foundation.",
+  description: "AI-native intelligence search for public information.",
 };
 
 export default function RootLayout({
