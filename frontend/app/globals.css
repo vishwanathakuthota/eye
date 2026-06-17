@@ -492,7 +492,9 @@ h1 {
 .record-group,
 .certificate-item,
 .source-item,
-.key-value-item {
+.key-value-item,
+.header-item,
+.confidence-panel {
   border: 1px solid var(--border);
   border-radius: 8px;
   background: var(--surface-muted);
@@ -560,7 +562,8 @@ h1 {
 }
 
 .certificate-list,
-.source-list {
+.source-list,
+.header-list {
   display: grid;
   gap: 12px;
 }
@@ -577,7 +580,8 @@ h1 {
   white-space: pre-wrap;
 }
 
-.source-item {
+.source-item,
+.header-item {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
@@ -585,11 +589,42 @@ h1 {
   padding: 14px;
 }
 
-.source-item p {
+.source-item p,
+.header-item p {
   margin: 0;
   color: var(--muted);
   font-size: 14px;
   line-height: 1.5;
+}
+
+.header-item h3 {
+  margin: 0 0 8px;
+  font-size: 15px;
+}
+
+.confidence-panel {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+}
+
+.confidence-panel > div {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.confidence-panel strong {
+  color: var(--accent-strong);
+  font-size: 22px;
+  line-height: 1.2;
+}
+
+.confidence-panel span {
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 700;
 }
 
 .status-pill {
@@ -659,7 +694,8 @@ h1 {
   .panel-heading,
   .report-row,
   .search-heading,
-  .source-item {
+  .source-item,
+  .header-item {
     display: grid;
   }
 

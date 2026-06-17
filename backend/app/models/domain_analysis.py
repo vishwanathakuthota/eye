@@ -24,4 +24,5 @@ class DomainAnalysis(Base):
     certificates: Mapped[list[dict[str, object]]] = mapped_column(JSON)
     subdomains: Mapped[list[str]] = mapped_column(JSON)
     sources: Mapped[list[dict[str, object]]] = mapped_column(JSON)
+    intelligence: Mapped[dict[str, object] | None] = mapped_column(JSON, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))

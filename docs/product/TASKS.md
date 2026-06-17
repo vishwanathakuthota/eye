@@ -18,3 +18,14 @@ Status: Implemented in `feature/report-export`.
 - Add printable HTML export for stored Domain and IP reports.
 - Add dashboard export actions for loaded report details.
 - Keep export scope limited to JSON and HTML.
+
+## Intelligence Value Layer
+
+Status: Implemented in `feature/intelligence-value-layer`.
+
+- Add confidence-aware Domain Intelligence scoring with clear incomplete intelligence notes.
+- Add email security posture checks for SPF and DMARC, with DKIM reserved as a placeholder.
+- Add passive web security header checks, TLS certificate inspection, and basic technology fingerprinting.
+- Add structured Intelligence Summary v2 sections and recommendations.
+- Extend Domain report JSON and HTML exports with the new intelligence sections.
+- Extend the dashboard with intelligence confidence, email security, web security, TLS, infrastructure, and recommendations sections.

@@ -8,6 +8,7 @@ const API_BASE_URL =
 type RiskLevel = "Low" | "Medium" | "High" | "Critical";
 type SourceStatus = "completed" | "partial" | "failed";
 type SearchType = "domain" | "ip";
+type IntelligenceConfidence = "High" | "Medium" | "Low";
 
 type ApiMeta = {
   request_id: string;
@@ -57,7 +58,70 @@ type DomainAnalysis = {
   certificates: CertificateFinding[];
   subdomains: string[];
   sources: SourceStatusItem[];
+  intelligence?: IntelligenceValueLayer;
   created_at: string;
+};
+
+type IntelligenceSectionData = {
+  title: string;
+  body: string;
+  bullets: string[];
+};
+
+type IntelligenceValueLayer = {
+  intelligence_confidence: IntelligenceConfidence;
+  incomplete_intelligence: boolean;
+  confidence_notes: string[];
+  email_security: {
+    spf_present: boolean;
+    spf_record: string | null;
+    dmarc_present: boolean;
+    dmarc_record: string | null;
+    dkim_status: string;
+    score: number;
+    findings: string[];
+    recommendations: string[];
+  };
+  web_security: {
+    checked_url: string | null;
+    status_code: number | null;
+    headers: {
+      name: string;
+      present: boolean;
+      value: string | null;
+      recommendation: string | null;
+    }[];
+    score: number;
+    findings: string[];
+    recommendations: string[];
+  };
+  tls: {
+    checked_host: string;
+    issuer: string | null;
+    subject: string | null;
+    valid_from: string | null;
+    valid_to: string | null;
+    days_remaining: number | null;
+    status: string;
+    findings: string[];
+    recommendations: string[];
+  } | null;
+  technology: {
+    server: string | null;
+    powered_by: string | null;
+    cdn_or_security: string[];
+    findings: string[];
+  };
+  recommendations: string[];
+  summary_v2: {
+    executive_summary: IntelligenceSectionData;
+    attack_surface_snapshot: IntelligenceSectionData;
+    email_security: IntelligenceSectionData;
+    web_security: IntelligenceSectionData;
+    infrastructure: IntelligenceSectionData;
+    confidence_notes: IntelligenceSectionData;
+    recommendations: IntelligenceSectionData;
+  } | null;
 };
 
 type IpAnalysis = {
@@ -514,10 +578,116 @@ function SummaryCard({ result, title }: { result: DomainAnalysis | IpAnalysis; t
 }
 
 function DomainDashboardResult({ result }: { result: DomainAnalysis }) {
+  const intelligence = result.intelligence;
+
   return (
     <div className="results-grid">
       <RiskCard result={result} subject={result.domain} />
       <SummaryCard result={result} title={result.domain} />
+
+      {intelligence ? (
+        <Section title="Intelligence Confidence">
+          <div className="confidence-panel">
+            <div>
+              <strong>{intelligence.intelligence_confidence}</strong>
+              <span>
+                {intelligence.incomplete_intelligence
+                  ? "Incomplete Intelligence"
+                  : "Source coverage complete"}
+              </span>
+            </div>
+            <ListBlock
+              items={intelligence.confidence_notes}
+              emptyLabel="No confidence notes returned."
+            />
+          </div>
+        </Section>
+      ) : null}
+
+      {intelligence ? (
+        <Section title="Email Security">
+          <KeyValueData
+            data={{
+              score: `${intelligence.email_security.score}/100`,
+              spf: intelligence.email_security.spf_present ? "Present" : "Missing",
+              spf_record: intelligence.email_security.spf_record,
+              dmarc: intelligence.email_security.dmarc_present ? "Present" : "Missing",
+              dmarc_record: intelligence.email_security.dmarc_record,
+              dkim: intelligence.email_security.dkim_status,
+            }}
+            emptyLabel="No email security posture returned."
+          />
+          <ListBlock
+            items={[
+              ...intelligence.email_security.findings,
+              ...intelligence.email_security.recommendations,
+            ]}
+            emptyLabel="No email security findings returned."
+          />
+        </Section>
+      ) : null}
+
+      {intelligence ? (
+        <Section title="Web Security Headers">
+          <KeyValueData
+            data={{
+              score: `${intelligence.web_security.score}/100`,
+              checked_url: intelligence.web_security.checked_url,
+              status_code: intelligence.web_security.status_code,
+            }}
+            emptyLabel="No web security posture returned."
+          />
+          <div className="header-list">
+            {intelligence.web_security.headers.map((header) => (
+              <article className="header-item" key={header.name}>
+                <div>
+                  <h3>{header.name}</h3>
+                  <p>{header.value ?? header.recommendation ?? "No value returned."}</p>
+                </div>
+                <span className={`status-pill ${header.present ? "status-completed" : "status-failed"}`}>
+                  {header.present ? "present" : "missing"}
+                </span>
+              </article>
+            ))}
+          </div>
+        </Section>
+      ) : null}
+
+      {intelligence ? (
+        <Section title="TLS">
+          {intelligence.tls ? (
+            <>
+              <KeyValueData
+                data={{
+                  status: intelligence.tls.status,
+                  issuer: intelligence.tls.issuer,
+                  subject: intelligence.tls.subject,
+                  valid_from: intelligence.tls.valid_from,
+                  valid_to: intelligence.tls.valid_to,
+                  days_remaining: intelligence.tls.days_remaining,
+                }}
+                emptyLabel="No TLS certificate data returned."
+              />
+              <ListBlock
+                items={[...intelligence.tls.findings, ...intelligence.tls.recommendations]}
+                emptyLabel="No TLS findings returned."
+              />
+            </>
+          ) : (
+            <p className="empty-copy">TLS certificate data could not be retrieved.</p>
+          )}
+        </Section>
+      ) : null}
+
+      {intelligence ? (
+        <Section title="Recommendations">
+          <ListBlock
+            items={intelligence.recommendations}
+            emptyLabel="No recommendations returned."
+          />
+        </Section>
+      ) : null}
+
       <Section title="DNS Records">
         <div className="dns-grid">
           {dnsRecordTypes.map((type) => (
@@ -557,6 +727,23 @@ function DomainDashboardResult({ result }: { result: DomainAnalysis }) {
       <Section title="Source Status">
         <SourceStatusList sources={result.sources} />
       </Section>
+
+      {intelligence ? (
+        <Section title="Infrastructure">
+          <KeyValueData
+            data={{
+              server: intelligence.technology.server,
+              powered_by: intelligence.technology.powered_by,
+              cdn_or_security: intelligence.technology.cdn_or_security,
+            }}
+            emptyLabel="No technology fingerprint returned."
+          />
+          <ListBlock
+            items={intelligence.technology.findings}
+            emptyLabel="No infrastructure findings returned."
+          />
+        </Section>
+      ) : null}
     </div>
   );
 }

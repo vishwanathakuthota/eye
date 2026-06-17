@@ -31,6 +31,8 @@ class ReportExportService:
         report_type = _escape(_display_report_type(report.type))
         risk = payload["risk"]
         findings = _findings_for_report(report.type, payload)
+        intelligence = payload.get("intelligence", {})
+        intelligence_sections = _intelligence_sections(intelligence)
         reliability_notes = _list_section(
             "Reliability Notes",
             risk.get("reliability_notes", []),
@@ -130,6 +132,7 @@ class ReportExportService:
       <p>{_escape(payload["summary"])}</p>
     </section>
     {findings}
+    {intelligence_sections}
     <section class="section">
       <h2>Source Status</h2>
       {_source_status(payload.get("sources", []))}
@@ -169,6 +172,48 @@ def _findings_for_report(report_type: str, payload: dict[str, Any]) -> str:
     <section class="section">
       <h2>Network Enrichment</h2>
       {_json_block(payload.get("network", {}))}
+    </section>"""
+
+
+def _intelligence_sections(intelligence: dict[str, Any]) -> str:
+    if not intelligence:
+        return ""
+
+    confidence = intelligence.get("intelligence_confidence", "Unknown")
+    incomplete = intelligence.get("incomplete_intelligence", False)
+    recommendations = intelligence.get("recommendations", [])
+    email_security = intelligence.get("email_security", {})
+    web_security = intelligence.get("web_security", {})
+    tls = intelligence.get("tls")
+    technology = intelligence.get("technology", {})
+
+    incomplete_label = "Incomplete Intelligence" if incomplete else "Complete enough for scoring"
+    tls_block = _json_block(tls) if tls else "<p>TLS data was not retrieved.</p>"
+    return f"""
+    <section class="section">
+      <h2>Intelligence Confidence</h2>
+      <p><strong>{_escape(str(confidence))}</strong> - {_escape(incomplete_label)}</p>
+      {_simple_list(intelligence.get("confidence_notes", []), "No confidence notes returned.")}
+    </section>
+    <section class="section">
+      <h2>Email Security</h2>
+      {_json_block(email_security)}
+    </section>
+    <section class="section">
+      <h2>Web Security Headers</h2>
+      {_json_block(web_security)}
+    </section>
+    <section class="section">
+      <h2>TLS</h2>
+      {tls_block}
+    </section>
+    <section class="section">
+      <h2>Technology Fingerprinting</h2>
+      {_json_block(technology)}
+    </section>
+    <section class="section">
+      <h2>Recommendations</h2>
+      {_simple_list(recommendations, "No recommendations returned.")}
     </section>"""
 
 

@@ -1,6 +1,12 @@
 from __future__ import annotations
 
-from app.schemas.domain import CertificateFinding, DnsFindings, RiskResult, SourceStatusItem
+from app.schemas.domain import (
+    CertificateFinding,
+    DnsFindings,
+    IntelligenceValueLayer,
+    RiskResult,
+    SourceStatusItem,
+)
 
 
 class IntelligenceSummaryService:
@@ -14,6 +20,7 @@ class IntelligenceSummaryService:
         subdomains: list[str],
         risk: RiskResult,
         sources: list[SourceStatusItem],
+        intelligence: IntelligenceValueLayer | None = None,
     ) -> str:
         record_count = sum(len(values) for values in dns.records.model_dump().values())
         source_status = ", ".join(f"{source.name}:{source.status}" for source in sources)
@@ -35,12 +42,24 @@ class IntelligenceSummaryService:
             else ""
         )
 
+        confidence_state = ""
+        if intelligence is not None:
+            incomplete_state = (
+                " Incomplete Intelligence is present."
+                if intelligence.incomplete_intelligence
+                else ""
+            )
+            confidence_state = (
+                f" Intelligence confidence is {intelligence.intelligence_confidence}."
+                f"{incomplete_state}"
+            )
+
         return (
             f"{domain} was analyzed using passive Domain Intelligence sources. "
             f"The analysis found {record_count} DNS records and {len(subdomains)} unique "
             f"subdomains. {certificate_state} "
             f"RDAP data is {rdap_state}. Risk is {risk.level} ({risk.score}/100). "
-            f"Source status: {source_status}.{failed_source_state}"
+            f"Source status: {source_status}.{failed_source_state}{confidence_state}"
         )
 
 

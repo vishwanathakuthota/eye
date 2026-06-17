@@ -25,6 +25,7 @@ class DomainAnalysisRepository:
             ],
             subdomains=result.subdomains,
             sources=[source.model_dump(mode="json") for source in result.sources],
+            intelligence=result.intelligence.model_dump(mode="json"),
             created_at=result.created_at,
         )
         self._db.add(record)

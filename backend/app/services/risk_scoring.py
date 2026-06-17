@@ -1,6 +1,14 @@
 from __future__ import annotations
 
-from app.schemas.domain import CertificateFinding, DnsFindings, RiskResult, SourceStatusItem
+from app.schemas.domain import (
+    CertificateFinding,
+    DnsFindings,
+    EmailSecurityPosture,
+    RiskResult,
+    SourceStatusItem,
+    TlsCertificateInfo,
+    WebSecurityPosture,
+)
 
 TRANSIENT_SOURCE_ERRORS = {
     "timeout",
@@ -20,6 +28,9 @@ class RiskScoringService:
         certificates: list[CertificateFinding],
         subdomains: list[str],
         sources: list[SourceStatusItem],
+        email_security: EmailSecurityPosture | None = None,
+        web_security: WebSecurityPosture | None = None,
+        tls: TlsCertificateInfo | None = None,
     ) -> RiskResult:
         score = 0
         reasons: list[str] = []
@@ -51,6 +62,31 @@ class RiskScoringService:
         if not certificates and _source_supports_finding(crtsh_source):
             score += 10
             reasons.append("No certificate transparency entries were discovered.")
+
+        if email_security is not None:
+            if not email_security.spf_present:
+                score += 8
+                reasons.append("SPF record was not found.")
+            if not email_security.dmarc_present:
+                score += 10
+                reasons.append("DMARC record was not found.")
+
+        if web_security is not None:
+            missing_headers = [header.name for header in web_security.headers if not header.present]
+            if len(missing_headers) >= 3:
+                score += 12
+                reasons.append("Multiple recommended web security headers are missing.")
+            elif missing_headers:
+                score += 5
+                reasons.append("Some recommended web security headers are missing.")
+
+        if tls is not None:
+            if tls.status == "expired":
+                score += 30
+                reasons.append("TLS certificate is expired.")
+            elif tls.status == "expiring_soon":
+                score += 10
+                reasons.append("TLS certificate expires soon.")
 
         for source in sources:
             confidence -= _confidence_reduction(source)
