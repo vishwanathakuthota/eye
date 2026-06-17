@@ -17,6 +17,7 @@ class IpAnalysisRepository:
             ip_version=result.ip_version,
             risk_score=result.risk.score,
             risk_level=result.risk.level,
+            risk=result.risk.model_dump(mode="json"),
             summary=result.summary,
             reverse_dns=result.reverse_dns.model_dump(mode="json"),
             network=result.network.model_dump(mode="json"),

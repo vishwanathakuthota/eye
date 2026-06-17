@@ -17,6 +17,7 @@ class DomainAnalysis(Base):
     domain: Mapped[str] = mapped_column(String(253), index=True)
     risk_score: Mapped[int] = mapped_column(Integer)
     risk_level: Mapped[str] = mapped_column(String(16))
+    risk: Mapped[dict[str, object] | None] = mapped_column(JSON, nullable=True)
     summary: Mapped[str] = mapped_column(Text)
     dns: Mapped[dict[str, object]] = mapped_column(JSON)
     rdap: Mapped[dict[str, object]] = mapped_column(JSON)

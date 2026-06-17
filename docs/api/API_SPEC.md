@@ -2,7 +2,7 @@
 
 Version: v0.1.0-alpha
 
-Stage: Milestone 2 - IP Intelligence Engine
+Stage: Milestone 3 - Report History & Retrieval
 
 Base path: `/api/v1`
 
@@ -19,7 +19,7 @@ Scope: Domain and IP Intelligence
 - v0.1 APIs are synchronous unless a future roadmap item changes that decision.
 - Sprint 002 implements the health endpoint and Domain Intelligence search endpoint.
 - Milestone 2 implements the IP Intelligence search endpoint.
-- Report retrieval remains planned until a later sprint.
+- Milestone 3 implements report history and retrieval for Domain and IP reports.
 
 ---
 
@@ -388,11 +388,94 @@ Status: `422 Unprocessable Entity`
 
 ---
 
+## GET /api/v1/reports
+
+Returns paginated report history across Domain and IP Intelligence reports.
+
+Status: Implemented in Milestone 3.
+
+### Request Example
+
+```bash
+curl "http://localhost:8000/api/v1/reports?limit=20&offset=0"
+```
+
+### Query Parameters
+
+| Name | Type | Required | Default | Description |
+| --- | --- | --- | --- | --- |
+| `limit` | integer | No | `20` | Number of reports to return. Minimum `1`, maximum `100`. |
+| `offset` | integer | No | `0` | Number of reports to skip. Minimum `0`. |
+
+### Response Example
+
+Status: `200 OK`
+
+```json
+{
+  "success": true,
+  "data": {
+    "items": [
+      {
+        "report_id": "ipr_123",
+        "type": "ip",
+        "target": "8.8.8.8",
+        "risk_level": "Low",
+        "risk_score": 5,
+        "created_at": "2026-06-17T00:00:00Z"
+      },
+      {
+        "report_id": "rep_123",
+        "type": "domain",
+        "target": "example.com",
+        "risk_level": "Low",
+        "risk_score": 20,
+        "created_at": "2026-06-16T00:00:00Z"
+      }
+    ],
+    "limit": 20,
+    "offset": 0,
+    "total": 2
+  },
+  "error": null,
+  "meta": {
+    "request_id": "req_123",
+    "timestamp": "2026-06-17T00:00:00Z",
+    "version": "v0.1.0-alpha"
+  }
+}
+```
+
+### Error Example
+
+Status: `422 Unprocessable Entity`
+
+```json
+{
+  "success": false,
+  "data": null,
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "message": "The request is invalid.",
+    "details": {
+      "errors": []
+    }
+  },
+  "meta": {
+    "request_id": "req_123",
+    "timestamp": "2026-06-17T00:00:00Z",
+    "version": "v0.1.0-alpha"
+  }
+}
+```
+
+---
+
 ## GET /api/v1/reports/{report_id}
 
 Returns a stored intelligence report.
 
-Status: Planned for a later sprint. Not implemented in Sprint 002.
+Status: Implemented in Milestone 3.
 
 ### Request Example
 
@@ -415,21 +498,26 @@ Status: `200 OK`
   "success": true,
   "data": {
     "report_id": "rep_123",
-    "domain": "example.com",
-    "risk": {
-      "score": 20,
-      "level": "Low",
-      "reasons": [],
-      "confidence": 100,
-      "reliability_notes": []
-    },
-    "summary": "Passive domain intelligence summary.",
-    "dns": {},
-    "rdap": {},
-    "certificates": [],
-    "subdomains": [],
-    "sources": [],
-    "created_at": "2026-06-16T00:00:00Z"
+    "type": "domain",
+    "target": "example.com",
+    "payload": {
+      "report_id": "rep_123",
+      "domain": "example.com",
+      "risk": {
+        "score": 20,
+        "level": "Low",
+        "reasons": [],
+        "confidence": 100,
+        "reliability_notes": []
+      },
+      "summary": "Passive domain intelligence summary.",
+      "dns": {},
+      "rdap": {},
+      "certificates": [],
+      "subdomains": [],
+      "sources": [],
+      "created_at": "2026-06-16T00:00:00Z"
+    }
   },
   "error": null,
   "meta": {
@@ -439,6 +527,8 @@ Status: `200 OK`
   }
 }
 ```
+
+For IP reports, `type` is `ip`, `target` is the IP address, and `payload` uses the same shape returned by `GET /api/v1/ip`.
 
 ### Error Example
 
@@ -458,6 +548,29 @@ Status: `404 Not Found`
   "meta": {
     "request_id": "req_123",
     "timestamp": "2026-06-16T00:00:00Z",
+    "version": "v0.1.0-alpha"
+  }
+}
+```
+
+Invalid report IDs return:
+
+Status: `422 Unprocessable Entity`
+
+```json
+{
+  "success": false,
+  "data": null,
+  "error": {
+    "code": "REPORT_INVALID",
+    "message": "Report ID is invalid.",
+    "details": {
+      "field": "report_id"
+    }
+  },
+  "meta": {
+    "request_id": "req_123",
+    "timestamp": "2026-06-17T00:00:00Z",
     "version": "v0.1.0-alpha"
   }
 }
@@ -525,6 +638,14 @@ The `report_id` path parameter must:
 - Reject path traversal sequences.
 - Reject whitespace.
 
+### Report Pagination Validation
+
+The `GET /api/v1/reports` query parameters must:
+
+- Use `limit` as an integer from `1` through `100`.
+- Use `offset` as an integer greater than or equal to `0`.
+- Return `VALIDATION_ERROR` for invalid query parameter types or ranges.
+
 ---
 
 ## HTTP Status Codes
@@ -552,6 +673,7 @@ Initial stable error codes:
 - `DOMAIN_REQUIRED`
 - `DOMAIN_INVALID`
 - `IP_INVALID`
+- `REPORT_INVALID`
 - `REPORT_NOT_FOUND`
 - `RATE_LIMITED`
 - `ANALYSIS_TIMEOUT`
