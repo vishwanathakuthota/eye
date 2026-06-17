@@ -9,6 +9,7 @@ from app.schemas.domain import (
     CertificateFinding,
     DnsFindings,
     DomainAnalysisResult,
+    IntelligenceValueLayer,
     RiskResult,
     SourceStatusItem,
 )
@@ -96,6 +97,11 @@ class ReportRepository:
             certificates=[CertificateFinding.model_validate(item) for item in record.certificates],
             subdomains=record.subdomains,
             sources=[SourceStatusItem.model_validate(item) for item in record.sources],
+            intelligence=(
+                IntelligenceValueLayer.model_validate(record.intelligence)
+                if record.intelligence is not None
+                else IntelligenceValueLayer()
+            ),
             created_at=record.created_at,
         )
         return ReportDetailResult(

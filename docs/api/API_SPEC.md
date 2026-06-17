@@ -2,7 +2,7 @@
 
 Version: v0.1.0-alpha
 
-Stage: Exportable Investigation Reports
+Stage: Intelligence Value Layer
 
 Base path: `/api/v1`
 
@@ -21,6 +21,9 @@ Scope: Domain and IP Intelligence
 - Milestone 2 implements the IP Intelligence search endpoint.
 - Milestone 3 implements report history and retrieval for Domain and IP reports.
 - Exportable Investigation Reports implements JSON and HTML export for stored reports.
+- Intelligence Value Layer adds confidence-aware Domain Intelligence, email posture,
+  web security headers, TLS inspection, technology fingerprinting, and structured
+  recommendations to Domain reports.
 
 ---
 
@@ -185,6 +188,95 @@ Status: `200 OK`
     "rdap": {},
     "certificates": [],
     "subdomains": [],
+    "intelligence": {
+      "intelligence_confidence": "High",
+      "incomplete_intelligence": false,
+      "confidence_notes": [],
+      "email_security": {
+        "spf_present": true,
+        "spf_record": "v=spf1 include:_spf.example.com -all",
+        "dmarc_present": true,
+        "dmarc_record": "v=DMARC1; p=reject",
+        "dkim_status": "placeholder",
+        "score": 100,
+        "findings": [],
+        "recommendations": []
+      },
+      "web_security": {
+        "checked_url": "https://example.com/",
+        "status_code": 200,
+        "headers": [
+          {
+            "name": "Strict-Transport-Security",
+            "present": true,
+            "value": "max-age=31536000",
+            "recommendation": null
+          }
+        ],
+        "score": 100,
+        "findings": [],
+        "recommendations": []
+      },
+      "tls": {
+        "checked_host": "example.com",
+        "issuer": "Example CA",
+        "subject": "example.com",
+        "valid_from": "2026-01-01T00:00:00Z",
+        "valid_to": "2026-12-31T23:59:59Z",
+        "days_remaining": 197,
+        "status": "valid",
+        "findings": [],
+        "recommendations": []
+      },
+      "technology": {
+        "server": "cloudflare",
+        "powered_by": null,
+        "cdn_or_security": [
+          "Cloudflare"
+        ],
+        "findings": [
+          "Server header reports cloudflare."
+        ]
+      },
+      "recommendations": [],
+      "summary_v2": {
+        "executive_summary": {
+          "title": "Executive Summary",
+          "body": "example.com has Low observed risk with High intelligence confidence.",
+          "bullets": []
+        },
+        "attack_surface_snapshot": {
+          "title": "Attack Surface Snapshot",
+          "body": "DNS, RDAP, certificate transparency, web, and TLS sources were reviewed.",
+          "bullets": []
+        },
+        "email_security": {
+          "title": "Email Security",
+          "body": "Email security posture score is 100/100.",
+          "bullets": []
+        },
+        "web_security": {
+          "title": "Web Security",
+          "body": "Web security header posture score is 100/100.",
+          "bullets": []
+        },
+        "infrastructure": {
+          "title": "Infrastructure",
+          "body": "Observed infrastructure indicators are summarized from passive sources.",
+          "bullets": []
+        },
+        "confidence_notes": {
+          "title": "Confidence Notes",
+          "body": "Intelligence confidence is High.",
+          "bullets": []
+        },
+        "recommendations": {
+          "title": "Recommendations",
+          "body": "No recommendations returned.",
+          "bullets": []
+        }
+      }
+    },
     "sources": [
       {
         "name": "dns",
@@ -202,6 +294,27 @@ Status: `200 OK`
       },
       {
         "name": "crt.sh",
+        "status": "completed",
+        "error": null,
+        "error_type": null,
+        "status_code": null
+      },
+      {
+        "name": "email_security",
+        "status": "completed",
+        "error": null,
+        "error_type": null,
+        "status_code": null
+      },
+      {
+        "name": "web_security",
+        "status": "completed",
+        "error": null,
+        "error_type": null,
+        "status_code": null
+      },
+      {
+        "name": "tls",
         "status": "completed",
         "error": null,
         "error_type": null,
@@ -243,7 +356,23 @@ Source failure `error_type` values:
 - `invalid_response`: Source returned malformed or unexpected data.
 - `unexpected_error`: Source failed unexpectedly.
 
-Risk scoring remains focused on observed intelligence. Transient source failures such as timeouts, rate limits, and upstream server errors should be represented in `sources` and `risk.reliability_notes`; they should not be treated as strong security findings. `risk.confidence` is a 0-100 indicator of how complete the source coverage was for the score.
+Risk scoring remains focused on observed intelligence. Transient source failures such as timeouts, rate limits, and upstream server errors should be represented in `sources`, `risk.reliability_notes`, and `intelligence.confidence_notes`; they should not be treated as strong security findings. `risk.confidence` is a 0-100 indicator of how complete the source coverage was for the score.
+
+### Intelligence Value Layer
+
+Domain responses include an `intelligence` object:
+
+- `intelligence_confidence`: `High`, `Medium`, or `Low` coverage confidence.
+- `incomplete_intelligence`: `true` when major source failures make the report incomplete.
+- `confidence_notes`: Reader-facing notes about source reliability and coverage.
+- `email_security`: SPF, DMARC, DKIM placeholder status, posture score, findings, and recommendations.
+- `web_security`: Passive HTTP/HTTPS header posture for HSTS, CSP, X-Frame-Options, X-Content-Type-Options, and Referrer-Policy.
+- `tls`: Live TLS certificate issuer, subject, validity window, days remaining, status, findings, and recommendations when retrievable.
+- `technology`: Basic server, powered-by, CDN, or security header indicators.
+- `recommendations`: Consolidated remediation recommendations.
+- `summary_v2`: Structured executive summary, attack surface, email security, web security, infrastructure, confidence notes, and recommendations sections.
+
+If a major source fails, the API should clearly represent incomplete intelligence without falsely lowering observed risk.
 
 ### Error Example
 
@@ -629,6 +758,17 @@ Content-Disposition: attachment; filename="eye-rep_123.json"
     "certificates": [],
     "subdomains": [],
     "sources": [],
+    "intelligence": {
+      "intelligence_confidence": "High",
+      "incomplete_intelligence": false,
+      "confidence_notes": [],
+      "email_security": {},
+      "web_security": {},
+      "tls": null,
+      "technology": {},
+      "recommendations": [],
+      "summary_v2": null
+    },
     "created_at": "2026-06-16T00:00:00Z"
   }
 }
@@ -667,6 +807,7 @@ The HTML response contains:
 - Risk score, level, confidence, risk reasons, and reliability notes.
 - Executive summary.
 - Domain findings or IP findings depending on report type.
+- Intelligence confidence, email security, web security, TLS, technology, and recommendations for Domain reports when available.
 - Source status.
 
 HTML export output must escape report data before rendering it into markup.

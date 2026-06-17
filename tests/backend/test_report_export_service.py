@@ -49,6 +49,7 @@ def test_report_export_service_builds_json_export_document() -> None:
     assert result["metadata"]["target"] == "example.com"
     assert result["report"]["report_id"] == "rep_export"
     assert result["report"]["risk"]["confidence"] == 90
+    assert result["report"]["intelligence"]["intelligence_confidence"] == "High"
 
 
 def test_report_export_service_escapes_html_output() -> None:
@@ -57,6 +58,9 @@ def test_report_export_service_escapes_html_output() -> None:
     )
 
     assert "<!doctype html>" in result
+    assert "Intelligence Confidence" in result
+    assert "Email Security" in result
+    assert "Web Security Headers" in result
     assert "&lt;strong&gt;unsafe&lt;/strong&gt;" in result
     assert "&lt;script&gt;alert(&#x27;x&#x27;)&lt;/script&gt;" in result
     assert "<script>alert('x')</script>" not in result
