@@ -5,16 +5,22 @@ from typing import Any
 
 import httpx
 
-from app.schemas.domain import CertificateFinding, SourceStatusItem
+from app.schemas.domain import CertificateFinding, SourceErrorType, SourceStatusItem
 from app.services.retry import retry_call
 
 logger = logging.getLogger(__name__)
 
 
 class CrtShLookupService:
-    def __init__(self, base_url: str = "https://crt.sh/", timeout_seconds: float = 8.0) -> None:
+    def __init__(
+        self,
+        base_url: str = "https://crt.sh/",
+        timeout_seconds: float = 12.0,
+        max_results: int = 100,
+    ) -> None:
         self._base_url = base_url
         self._timeout_seconds = timeout_seconds
+        self._max_results = max_results
 
     def lookup(self, domain: str) -> tuple[list[CertificateFinding], list[str], SourceStatusItem]:
         params = {"q": f"%.{domain}", "output": "json"}
@@ -28,32 +34,92 @@ class CrtShLookupService:
             )
             response.raise_for_status()
             payload = response.json()
-        except (httpx.HTTPError, ValueError) as exc:
+        except httpx.TimeoutException:
+            logger.warning(
+                "crtsh_lookup_timeout",
+                extra={"domain": domain, "source": "crt.sh"},
+            )
+            return (
+                [],
+                [],
+                _source_failure(
+                    error_type="timeout",
+                    error="Certificate transparency data could not be retrieved.",
+                ),
+            )
+        except httpx.HTTPStatusError as exc:
+            status_code = exc.response.status_code
+            logger.warning(
+                "crtsh_lookup_http_error",
+                extra={
+                    "domain": domain,
+                    "source": "crt.sh",
+                    "status_code": status_code,
+                },
+            )
+            return (
+                [],
+                [],
+                _source_failure(
+                    error_type=_classify_status_code(status_code),
+                    error=_message_for_status_code(status_code),
+                    status_code=status_code,
+                ),
+            )
+        except httpx.HTTPError:
             logger.warning("crtsh_lookup_failed", extra={"domain": domain, "source": "crt.sh"})
             return (
                 [],
                 [],
-                SourceStatusItem(name="crt.sh", status="failed", error=exc.__class__.__name__),
+                _source_failure(
+                    error_type="unexpected_error",
+                    error="Certificate transparency data could not be retrieved.",
+                ),
+            )
+        except ValueError:
+            logger.warning(
+                "crtsh_lookup_invalid_response",
+                extra={"domain": domain, "source": "crt.sh"},
+            )
+            return (
+                [],
+                [],
+                _source_failure(
+                    error_type="invalid_response",
+                    error="Certificate transparency response was not valid JSON.",
+                ),
             )
 
         if not isinstance(payload, list):
             return (
                 [],
                 [],
-                SourceStatusItem(
-                    name="crt.sh", status="failed", error="Unexpected response shape."
+                _source_failure(
+                    error_type="invalid_response",
+                    error="Certificate transparency response had an unexpected shape.",
                 ),
             )
 
-        certificates = self._normalize_certificates(payload)
+        certificates = self._normalize_certificates(payload, max_results=self._max_results)
         subdomains = self._extract_subdomains(domain, certificates)
-        return certificates, subdomains, SourceStatusItem(name="crt.sh", status="completed")
+        source_status = SourceStatusItem(name="crt.sh", status="completed")
+        if len(payload) > self._max_results:
+            source_status = SourceStatusItem(
+                name="crt.sh",
+                status="partial",
+                error=f"Certificate transparency results capped at {self._max_results}.",
+            )
+        return certificates, subdomains, source_status
 
     @staticmethod
-    def _normalize_certificates(payload: list[Any]) -> list[CertificateFinding]:
+    def _normalize_certificates(
+        payload: list[Any],
+        *,
+        max_results: int,
+    ) -> list[CertificateFinding]:
         seen: set[tuple[str, str | None, str | None]] = set()
         certificates: list[CertificateFinding] = []
-        for item in payload[:100]:
+        for item in payload:
             if not isinstance(item, dict) or not item.get("name_value"):
                 continue
             finding = CertificateFinding(
@@ -68,6 +134,8 @@ class CrtShLookupService:
                 continue
             seen.add(key)
             certificates.append(finding)
+            if len(certificates) >= max_results:
+                break
         return certificates
 
     @staticmethod
@@ -81,3 +149,38 @@ class CrtShLookupService:
                     continue
                 subdomains.add(normalized)
         return sorted(subdomains)
+
+
+def _source_failure(
+    *,
+    error_type: SourceErrorType,
+    error: str,
+    status_code: int | None = None,
+) -> SourceStatusItem:
+    return SourceStatusItem(
+        name="crt.sh",
+        status="failed",
+        error=error,
+        error_type=error_type,
+        status_code=status_code,
+    )
+
+
+def _classify_status_code(status_code: int) -> SourceErrorType:
+    if status_code == 404:
+        return "not_found"
+    if status_code == 429:
+        return "rate_limited"
+    if status_code >= 500:
+        return "server_error"
+    return "http_error"
+
+
+def _message_for_status_code(status_code: int) -> str:
+    if status_code == 404:
+        return "Certificate transparency data was not found."
+    if status_code == 429:
+        return "Certificate transparency source rate limited the request."
+    if status_code >= 500:
+        return "Certificate transparency source returned a server error."
+    return f"Certificate transparency source returned HTTP {status_code}."
