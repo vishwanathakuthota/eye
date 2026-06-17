@@ -205,6 +205,35 @@ type ReportsState = {
 };
 
 const dnsRecordTypes: DnsRecordType[] = ["A", "AAAA", "MX", "TXT", "NS", "CNAME"];
+const exampleSearches = ["Elon Musk", "Tesla", "techoptima.ai", "8.8.8.8"];
+const pricingPlans = [
+  {
+    name: "Free",
+    description: "Start with lightweight public intelligence lookups.",
+    features: ["10 searches/month", "Domain and IP intelligence", "Basic reports"],
+  },
+  {
+    name: "Pro",
+    description: "For individual investigators who need repeatable reports.",
+    features: [
+      "500 searches/month",
+      "Person/company intelligence when available",
+      "Report history",
+      "JSON/HTML exports",
+    ],
+    featured: true,
+  },
+  {
+    name: "Team",
+    description: "Coordinate investigations across a small analyst group.",
+    features: ["Shared investigations", "Watchlists later", "Team workspace later"],
+  },
+  {
+    name: "Enterprise",
+    description: "Bring Eye into governed environments and custom workflows.",
+    features: ["API access", "Private deployment", "Custom data connectors", "SLA/support"],
+  },
+];
 
 export default function Home() {
   const [searchType, setSearchType] = useState<SearchType>("domain");
@@ -226,8 +255,6 @@ export default function Home() {
     return searchType === "domain" ? value.toLowerCase() : value;
   }, [searchType, searchValue]);
   const hasResult = query.status === "success";
-  const searchLabel = searchType === "domain" ? "Domain" : "IP address";
-  const searchPlaceholder = searchType === "domain" ? "example.com" : "8.8.8.8";
 
   const fetchRecentReports = useCallback(async () => {
     try {
@@ -281,11 +308,23 @@ export default function Home() {
       return;
     }
 
+    const detectedSearchType = detectSearchType(normalizedQuery);
+    if (!detectedSearchType) {
+      setQuery({
+        status: "error",
+        result: null,
+        error:
+          "Person, company, email, and organization intelligence are not available in this local alpha yet. Try a domain or IP address.",
+      });
+      return;
+    }
+
+    setSearchType(detectedSearchType);
     setQuery({ status: "loading", result: null, error: null });
 
     try {
       const endpoint =
-        searchType === "domain"
+        detectedSearchType === "domain"
           ? `${API_BASE_URL}/domain?domain=${encodeURIComponent(normalizedQuery)}`
           : `${API_BASE_URL}/ip?ip=${encodeURIComponent(normalizedQuery)}`;
 
@@ -305,12 +344,19 @@ export default function Home() {
         setQuery({
           status: "error",
           result: null,
-          error: body.error?.message ?? `${searchLabel} analysis failed.`,
+          error:
+            body.error?.message ??
+            `${detectedSearchType === "domain" ? "Domain" : "IP"} analysis failed.`,
         });
         return;
       }
 
-      setQuery({ status: "success", result: body.data, error: null, searchType });
+      setQuery({
+        status: "success",
+        result: body.data,
+        error: null,
+        searchType: detectedSearchType,
+      });
       void fetchRecentReports();
     } catch {
       setQuery({
@@ -388,56 +434,81 @@ export default function Home() {
     <main className="dashboard-shell">
       <header className="topbar">
         <div>
-          <h1>EYE</h1>
+          <p className="brand-kicker">AI-Native Intelligence Search Engine</p>
+          <h1>Eye</h1>
           <p className="tagline">Search Anything. Understand Everything.</p>
         </div>
+        <span className="api-chip">Domain/IP live</span>
       </header>
 
-      <section className="search-panel" aria-label="Intelligence search">
+      <section className="hero-panel" aria-labelledby="hero-heading">
+        <div className="hero-copy">
+          <p className="section-kicker">Intelligence Search</p>
+          <h2 id="hero-heading">Search people, companies, domains, IPs, and digital assets.</h2>
+          <p>
+            Turn public information into actionable intelligence. Eye starts with
+            local Domain and IP intelligence today, then expands into a broader
+            investigative search workspace.
+          </p>
+        </div>
         <form className="search-form" onSubmit={handleSubmit}>
           <div className="search-heading">
-            <label htmlFor="intelligence-search">{searchLabel}</label>
-            <div className="search-type-tabs" aria-label="Search type">
-              <button
-                type="button"
-                className={searchType === "domain" ? "active" : ""}
-                aria-pressed={searchType === "domain"}
-                onClick={() => {
-                  setSearchType("domain");
-                  setQuery({ status: "idle", result: null, error: null });
-                }}
-              >
-                Domain
-              </button>
-              <button
-                type="button"
-                className={searchType === "ip" ? "active" : ""}
-                aria-pressed={searchType === "ip"}
-                onClick={() => {
-                  setSearchType("ip");
-                  setQuery({ status: "idle", result: null, error: null });
-                }}
-              >
-                IP
-              </button>
+            <label htmlFor="intelligence-search">Unified Search</label>
+            <div className="search-scope" aria-label="Available search types">
+              <span className={searchType === "domain" ? "active" : ""}>Domain</span>
+              <span className={searchType === "ip" ? "active" : ""}>IP</span>
+              <span>People later</span>
+              <span>Companies later</span>
             </div>
           </div>
-          <div className="search-row">
+          <div className="search-row unified-search-row">
             <input
               id="intelligence-search"
               name="query"
               type="text"
               value={searchValue}
               onChange={(event) => setSearchValue(event.target.value)}
-              placeholder={searchPlaceholder}
+              placeholder="Search person, company, domain, IP, email, or organization"
               autoComplete="off"
               spellCheck={false}
             />
             <button type="submit" disabled={query.status === "loading"}>
-              {query.status === "loading" ? "Analyzing" : "Analyze"}
+              {query.status === "loading" ? "Searching" : "Search"}
             </button>
           </div>
+          <div className="example-row" aria-label="Example searches">
+            <span>Examples</span>
+            {exampleSearches.map((example) => (
+              <button
+                key={example}
+                type="button"
+                className="example-chip"
+                onClick={() => {
+                  setSearchValue(example);
+                  setSearchType(detectSearchType(example) ?? "domain");
+                  setQuery({ status: "idle", result: null, error: null });
+                }}
+              >
+                {example}
+              </button>
+            ))}
+          </div>
         </form>
+      </section>
+
+      <section className="positioning-grid" aria-label="Product positioning">
+        <article>
+          <strong>Unified search</strong>
+          <span>One command surface for public intelligence workflows.</span>
+        </article>
+        <article>
+          <strong>Actionable reports</strong>
+          <span>Risk, source status, summaries, history, and exports in one place.</span>
+        </article>
+        <article>
+          <strong>Local-first alpha</strong>
+          <span>Domain and IP intelligence run through the existing Eye API.</span>
+        </article>
       </section>
 
       <RecentReportsPanel reports={reports} onSelect={handleReportSelect} />
@@ -457,8 +528,39 @@ export default function Home() {
         <IpDashboardResult result={query.result as IpAnalysis} />
       ) : null}
 
+      <PricingSection />
+
       <footer className="footer">A product by DrPinnacle</footer>
     </main>
+  );
+}
+
+function PricingSection() {
+  return (
+    <section className="pricing-section" aria-labelledby="pricing-heading">
+      <div className="pricing-heading">
+        <p className="section-kicker">Pricing</p>
+        <h2 id="pricing-heading">Choose the intelligence search plan that fits the work.</h2>
+      </div>
+      <div className="pricing-grid">
+        {pricingPlans.map((plan) => (
+          <article
+            className={`pricing-card ${plan.featured ? "pricing-card-featured" : ""}`}
+            key={plan.name}
+          >
+            <div>
+              <h3>{plan.name}</h3>
+              <p>{plan.description}</p>
+            </div>
+            <ul>
+              {plan.features.map((feature) => (
+                <li key={feature}>{feature}</li>
+              ))}
+            </ul>
+          </article>
+        ))}
+      </div>
+    </section>
   );
 }
 
@@ -889,11 +991,40 @@ function EmptyState({ searchType }: { searchType: SearchType }) {
     <section className="state-panel">
       <strong>Ready</strong>
       <p>
-        Enter {searchType === "domain" ? "a domain" : "an IP address"} to generate a local{" "}
+        Search a domain or IP address to generate a local{" "}
         {searchType === "domain" ? "Domain" : "IP"} Intelligence report.
       </p>
     </section>
   );
+}
+
+function detectSearchType(value: string): SearchType | null {
+  const trimmed = value.trim();
+
+  if (isIpAddress(trimmed)) {
+    return "ip";
+  }
+
+  if (isDomain(trimmed)) {
+    return "domain";
+  }
+
+  return null;
+}
+
+function isIpAddress(value: string) {
+  const ipv4Pattern =
+    /^(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}$/;
+  const ipv6Pattern = /^[0-9a-f:]+$/i;
+
+  return ipv4Pattern.test(value) || (value.includes(":") && ipv6Pattern.test(value));
+}
+
+function isDomain(value: string) {
+  const domainPattern =
+    /^(?=.{1,253}$)(?!-)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,}$/i;
+
+  return domainPattern.test(value);
 }
 
 function formatKey(value: string) {
