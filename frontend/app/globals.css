@@ -23,30 +23,22 @@ body {
   font-family: Arial, Helvetica, sans-serif;
 }
 
-a {
-  color: inherit;
-}
-
 .shell {
   min-height: 100vh;
   display: grid;
-  place-items: center;
+  grid-template-rows: 1fr auto;
+  align-items: center;
   padding: 48px 24px;
 }
 
 .intro {
   width: min(720px, 100%);
+  justify-self: center;
   border: 1px solid var(--border);
   border-radius: 8px;
   background: #ffffff;
   padding: 40px;
-}
-
-.version {
-  margin: 0 0 12px;
-  color: var(--accent);
-  font-size: 14px;
-  font-weight: 700;
+  text-align: center;
 }
 
 h1 {
@@ -62,13 +54,20 @@ h1 {
   line-height: 1.4;
 }
 
-.status {
-  margin: 24px 0 0;
+.footer {
+  justify-self: center;
+  margin-top: 32px;
   color: var(--muted);
-  line-height: 1.6;
+  font-size: 14px;
+  line-height: 1.5;
+  text-align: center;
 }
 
 @media (max-width: 520px) {
+  .shell {
+    padding: 36px 18px 28px;
+  }
+
   .intro {
     padding: 28px;
   }
@@ -79,5 +78,9 @@ h1 {
 
   .tagline {
     font-size: 19px;
+  }
+
+  .footer {
+    font-size: 13px;
   }
 }
