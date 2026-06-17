@@ -121,6 +121,7 @@ h1 {
 .search-panel,
 .state-panel,
 .recent-reports,
+.export-actions,
 .score-card,
 .summary-card,
 .result-section {
@@ -224,6 +225,46 @@ h1 {
   gap: 14px;
   margin-bottom: 18px;
   padding: 18px;
+}
+
+.export-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 18px;
+  padding: 16px 18px;
+}
+
+.export-actions h2 {
+  margin: 0;
+  font-size: 18px;
+  line-height: 1.25;
+}
+
+.export-button-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.export-button-row button {
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  background: var(--surface-muted);
+  color: var(--accent-strong);
+  font-size: 13px;
+  font-weight: 800;
+  min-height: 38px;
+  padding: 0 14px;
+}
+
+.export-button-row button:hover,
+.export-button-row button:focus-visible {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.12);
+  outline: none;
 }
 
 .panel-heading {
@@ -614,6 +655,7 @@ h1 {
   }
 
   .topbar,
+  .export-actions,
   .panel-heading,
   .report-row,
   .search-heading,

@@ -46,7 +46,7 @@ def seed_reports(db: Session) -> None:
             risk_level="Low",
             summary="Domain summary.",
             dns={"records": {"A": ["93.184.216.34"]}},
-            rdap={"handle": "EXAMPLE"},
+            rdap={"handle": "EXAMPLE", "unsafe": "<script>alert('x')</script>"},
             certificates=[{"name_value": "www.example.com"}],
             subdomains=["www.example.com"],
             sources=[{"name": "dns", "status": "completed"}],
@@ -171,3 +171,67 @@ def test_reports_endpoint_returns_standard_error_for_invalid_pagination() -> Non
     body = response.json()
     assert body["success"] is False
     assert body["error"]["code"] == "VALIDATION_ERROR"
+
+
+def test_report_json_export_endpoint_returns_full_report_document() -> None:
+    client, session_factory = build_client()
+    with session_factory() as db:
+        seed_reports(db)
+
+    response = client.get("/api/v1/reports/rep_api/export/json")
+
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith("application/json")
+    assert (
+        response.headers["content-disposition"]
+        == 'attachment; filename="eye-rep_api.json"'
+    )
+    body = response.json()
+    assert body["metadata"]["product"] == "Eye"
+    assert body["metadata"]["report_id"] == "rep_api"
+    assert body["metadata"]["type"] == "domain"
+    assert body["metadata"]["target"] == "example.com"
+    assert body["report"]["domain"] == "example.com"
+    assert body["report"]["rdap"]["unsafe"] == "<script>alert('x')</script>"
+
+
+def test_report_html_export_endpoint_returns_printable_html_and_escapes_content() -> (
+    None
+):
+    client, session_factory = build_client()
+    with session_factory() as db:
+        seed_reports(db)
+
+    response = client.get("/api/v1/reports/rep_api/export/html")
+
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith("text/html")
+    assert (
+        response.headers["content-disposition"] == 'inline; filename="eye-rep_api.html"'
+    )
+    assert "Executive Investigation Report" in response.text
+    assert "&lt;script&gt;alert(&#x27;x&#x27;)&lt;/script&gt;" in response.text
+    assert "<script>alert('x')</script>" not in response.text
+
+
+def test_report_json_export_endpoint_returns_not_found_error() -> None:
+    client, _session_factory = build_client()
+
+    response = client.get("/api/v1/reports/rep_missing/export/json")
+
+    assert response.status_code == 404
+    body = response.json()
+    assert body["success"] is False
+    assert body["error"]["code"] == "REPORT_NOT_FOUND"
+
+
+def test_report_html_export_endpoint_returns_ip_report() -> None:
+    client, session_factory = build_client()
+    with session_factory() as db:
+        seed_reports(db)
+
+    response = client.get("/api/v1/reports/ipr_api/export/html")
+
+    assert response.status_code == 200
+    assert "IP intelligence report for <strong>8.8.8.8</strong>" in response.text
+    assert "Reverse DNS" in response.text

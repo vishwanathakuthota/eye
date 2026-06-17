@@ -311,6 +311,15 @@ export default function Home() {
     }
   }
 
+  function handleExport(format: "json" | "html") {
+    if (query.status !== "success") {
+      return;
+    }
+
+    const url = `${API_BASE_URL}/reports/${encodeURIComponent(query.result.report_id)}/export/${format}`;
+    window.open(url, "_blank", "noopener,noreferrer");
+  }
+
   return (
     <main className="dashboard-shell">
       <header className="topbar">
@@ -373,6 +382,10 @@ export default function Home() {
       {query.status === "error" ? <ErrorState message={query.error} /> : null}
       {!hasResult && query.status === "idle" ? <EmptyState searchType={searchType} /> : null}
 
+      {hasResult ? (
+        <ExportActions reportId={query.result.report_id} onExport={handleExport} />
+      ) : null}
+
       {hasResult && query.searchType === "domain" ? (
         <DomainDashboardResult result={query.result as DomainAnalysis} />
       ) : null}
@@ -382,6 +395,31 @@ export default function Home() {
 
       <footer className="footer">A product by DrPinnacle</footer>
     </main>
+  );
+}
+
+function ExportActions({
+  reportId,
+  onExport,
+}: {
+  reportId: string;
+  onExport: (format: "json" | "html") => void;
+}) {
+  return (
+    <section className="export-actions" aria-label="Report export">
+      <div>
+        <p className="section-kicker">Export</p>
+        <h2>{reportId}</h2>
+      </div>
+      <div className="export-button-row">
+        <button type="button" onClick={() => onExport("json")}>
+          JSON
+        </button>
+        <button type="button" onClick={() => onExport("html")}>
+          HTML
+        </button>
+      </div>
+    </section>
   );
 }
 
