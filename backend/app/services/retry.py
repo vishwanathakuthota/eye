@@ -3,14 +3,11 @@ from __future__ import annotations
 import logging
 import time
 from collections.abc import Callable
-from typing import TypeVar
-
-T = TypeVar("T")
 
 logger = logging.getLogger(__name__)
 
 
-def retry_call(
+def retry_call[T](
     operation: Callable[[], T],
     *,
     attempts: int,
