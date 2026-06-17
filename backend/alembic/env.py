@@ -8,6 +8,7 @@ from alembic import context
 from app.core.config import get_settings
 from app.db.base import Base
 from app.models.domain_analysis import DomainAnalysis
+from app.models.ip_analysis import IpAnalysis
 
 config = context.config
 
@@ -55,4 +56,4 @@ if context.is_offline_mode():
 else:
     run_migrations_online()
 
-__all__ = ["DomainAnalysis"]
+__all__ = ["DomainAnalysis", "IpAnalysis"]

@@ -2,11 +2,11 @@
 
 Version: v0.1.0-alpha
 
-Stage: Sprint 002 - Domain Intelligence Engine
+Stage: Milestone 2 - IP Intelligence Engine
 
 Base path: `/api/v1`
 
-Scope: Domain Intelligence only
+Scope: Domain and IP Intelligence
 
 ---
 
@@ -18,6 +18,7 @@ Scope: Domain Intelligence only
 - APIs must not expose secrets, stack traces, or raw credentials.
 - v0.1 APIs are synchronous unless a future roadmap item changes that decision.
 - Sprint 002 implements the health endpoint and Domain Intelligence search endpoint.
+- Milestone 2 implements the IP Intelligence search endpoint.
 - Report retrieval remains planned until a later sprint.
 
 ---
@@ -268,9 +269,128 @@ Status: `422 Unprocessable Entity`
 
 ---
 
+## GET /api/v1/ip?ip=<ip_address>
+
+Runs passive IP Intelligence analysis for an IPv4 or IPv6 address.
+
+Status: Implemented in Milestone 2.
+
+### Request Example
+
+```bash
+curl "http://localhost:8000/api/v1/ip?ip=8.8.8.8"
+```
+
+### Query Parameters
+
+| Name | Type | Required | Description |
+| --- | --- | --- | --- |
+| `ip` | string | Yes | IPv4 or IPv6 address to analyze. Example: `8.8.8.8` |
+
+### Response Example
+
+Status: `200 OK`
+
+```json
+{
+  "success": true,
+  "data": {
+    "report_id": "ipr_123",
+    "ip": "8.8.8.8",
+    "ip_version": 4,
+    "risk": {
+      "score": 5,
+      "level": "Low",
+      "reasons": [],
+      "confidence": 100,
+      "reliability_notes": []
+    },
+    "summary": "8.8.8.8 was analyzed as an IPv4 address using local IP Intelligence sources.",
+    "reverse_dns": {
+      "ptr_records": [
+        "dns.google."
+      ]
+    },
+    "network": {
+      "asn": null,
+      "organization": null,
+      "network": null,
+      "classification": "global",
+      "source": "local-placeholder",
+      "note": "ASN and network ownership enrichment is reserved for a future integration.",
+      "attributes": {
+        "is_global": true,
+        "is_private": false,
+        "is_reserved": false,
+        "is_loopback": false,
+        "is_multicast": false,
+        "is_link_local": false,
+        "reverse_pointer": "8.8.8.8.in-addr.arpa"
+      }
+    },
+    "sources": [
+      {
+        "name": "reverse_dns",
+        "status": "completed",
+        "error": null,
+        "error_type": null,
+        "status_code": null
+      },
+      {
+        "name": "network_enrichment",
+        "status": "completed",
+        "error": null,
+        "error_type": null,
+        "status_code": null
+      }
+    ],
+    "created_at": "2026-06-17T00:00:00Z"
+  },
+  "error": null,
+  "meta": {
+    "request_id": "req_123",
+    "timestamp": "2026-06-17T00:00:00Z",
+    "version": "v0.1.0-alpha"
+  }
+}
+```
+
+### Persistence
+
+A successful response is persisted to PostgreSQL before the API returns `200 OK`.
+
+### Source Reliability
+
+IP analysis responses include source status metadata. Reverse DNS timeouts and resolver failures are visible in `sources` and may reduce `risk.confidence`, but they are not treated as strong risk findings by themselves.
+
+### Error Example
+
+Status: `422 Unprocessable Entity`
+
+```json
+{
+  "success": false,
+  "data": null,
+  "error": {
+    "code": "IP_INVALID",
+    "message": "IP address must be a valid IPv4 or IPv6 address.",
+    "details": {
+      "field": "ip"
+    }
+  },
+  "meta": {
+    "request_id": "req_123",
+    "timestamp": "2026-06-17T00:00:00Z",
+    "version": "v0.1.0-alpha"
+  }
+}
+```
+
+---
+
 ## GET /api/v1/reports/{report_id}
 
-Returns a stored Domain Intelligence report.
+Returns a stored intelligence report.
 
 Status: Planned for a later sprint. Not implemented in Sprint 002.
 
@@ -374,6 +494,27 @@ The `domain` query parameter must reject:
 - Shell syntax.
 - Script content.
 
+### IP Validation
+
+The `ip` query parameter must:
+
+- Be present.
+- Be a string.
+- Be trimmed before validation.
+- Parse as a valid IPv4 or IPv6 address.
+- Be normalized using standard IP address formatting.
+
+The `ip` query parameter must reject:
+
+- Empty values.
+- Domain names.
+- URLs with schemes, paths, queries, or fragments.
+- CIDR ranges.
+- IP addresses with ports.
+- Whitespace-separated values.
+- Shell syntax.
+- Script content.
+
 ### Report ID Validation
 
 The `report_id` path parameter must:
@@ -390,11 +531,11 @@ The `report_id` path parameter must:
 
 | Status | Meaning | Usage |
 | --- | --- | --- |
-| `200 OK` | Successful request | Health, domain analysis, report retrieval |
+| `200 OK` | Successful request | Health, domain analysis, IP analysis, report retrieval |
 | `400 Bad Request` | Invalid request shape | Missing or malformed request |
 | `404 Not Found` | Resource not found | Report ID does not exist |
 | `408 Request Timeout` | Request timed out | Analysis or dependency timeout |
-| `422 Unprocessable Entity` | Validation failed | Unsupported domain or report identifier |
+| `422 Unprocessable Entity` | Validation failed | Unsupported domain, IP address, or report identifier |
 | `429 Too Many Requests` | Rate limited | Request exceeds configured limits |
 | `500 Internal Server Error` | Unexpected server failure | Unhandled backend error |
 | `502 Bad Gateway` | External source failure | Passive source failed unexpectedly |
@@ -410,6 +551,7 @@ Initial stable error codes:
 - `VALIDATION_ERROR`
 - `DOMAIN_REQUIRED`
 - `DOMAIN_INVALID`
+- `IP_INVALID`
 - `REPORT_NOT_FOUND`
 - `RATE_LIMITED`
 - `ANALYSIS_TIMEOUT`

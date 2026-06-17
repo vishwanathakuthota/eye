@@ -7,6 +7,7 @@ const API_BASE_URL =
 
 type RiskLevel = "Low" | "Medium" | "High" | "Critical";
 type SourceStatus = "completed" | "partial" | "failed";
+type SearchType = "domain" | "ip";
 
 type ApiMeta = {
   request_id: string;
@@ -59,6 +60,34 @@ type DomainAnalysis = {
   created_at: string;
 };
 
+type IpAnalysis = {
+  report_id: string;
+  ip: string;
+  ip_version: number;
+  risk: {
+    score: number;
+    level: RiskLevel;
+    reasons: string[];
+    confidence?: number;
+    reliability_notes?: string[];
+  };
+  summary: string;
+  reverse_dns: {
+    ptr_records: string[];
+  };
+  network: {
+    asn: string | null;
+    organization: string | null;
+    network: string | null;
+    classification: string;
+    source: string;
+    note: string;
+    attributes: Record<string, unknown>;
+  };
+  sources: SourceStatusItem[];
+  created_at: string;
+};
+
 type CertificateFinding = {
   common_name: string | null;
   name_value: string;
@@ -78,30 +107,36 @@ type SourceStatusItem = {
 type QueryState =
   | { status: "idle"; result: null; error: null }
   | { status: "loading"; result: null; error: null }
-  | { status: "success"; result: DomainAnalysis; error: null }
+  | { status: "success"; result: DomainAnalysis | IpAnalysis; error: null; searchType: SearchType }
   | { status: "error"; result: null; error: string };
 
 const dnsRecordTypes: DnsRecordType[] = ["A", "AAAA", "MX", "TXT", "NS", "CNAME"];
 
 export default function Home() {
-  const [domain, setDomain] = useState("");
+  const [searchType, setSearchType] = useState<SearchType>("domain");
+  const [searchValue, setSearchValue] = useState("");
   const [query, setQuery] = useState<QueryState>({
     status: "idle",
     result: null,
     error: null,
   });
 
-  const normalizedDomain = useMemo(() => domain.trim().toLowerCase(), [domain]);
+  const normalizedQuery = useMemo(() => {
+    const value = searchValue.trim();
+    return searchType === "domain" ? value.toLowerCase() : value;
+  }, [searchType, searchValue]);
   const hasResult = query.status === "success";
+  const searchLabel = searchType === "domain" ? "Domain" : "IP address";
+  const searchPlaceholder = searchType === "domain" ? "example.com" : "8.8.8.8";
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    if (!normalizedDomain) {
+    if (!normalizedQuery) {
       setQuery({
         status: "error",
         result: null,
-        error: "Enter a domain to analyze.",
+        error: `Enter a ${searchType === "domain" ? "domain" : "valid IP address"} to analyze.`,
       });
       return;
     }
@@ -109,8 +144,13 @@ export default function Home() {
     setQuery({ status: "loading", result: null, error: null });
 
     try {
+      const endpoint =
+        searchType === "domain"
+          ? `${API_BASE_URL}/domain?domain=${encodeURIComponent(normalizedQuery)}`
+          : `${API_BASE_URL}/ip?ip=${encodeURIComponent(normalizedQuery)}`;
+
       const response = await fetch(
-        `${API_BASE_URL}/domain?domain=${encodeURIComponent(normalizedDomain)}`,
+        endpoint,
         {
           method: "GET",
           headers: {
@@ -119,23 +159,23 @@ export default function Home() {
         },
       );
 
-      const body = (await response.json()) as ApiResponse<DomainAnalysis>;
+      const body = (await response.json()) as ApiResponse<DomainAnalysis | IpAnalysis>;
 
       if (!response.ok || !body.success) {
         setQuery({
           status: "error",
           result: null,
-          error: body.error?.message ?? "Domain analysis failed.",
+          error: body.error?.message ?? `${searchLabel} analysis failed.`,
         });
         return;
       }
 
-      setQuery({ status: "success", result: body.data, error: null });
+      setQuery({ status: "success", result: body.data, error: null, searchType });
     } catch {
       setQuery({
         status: "error",
         result: null,
-        error: "Eye could not reach the Domain Intelligence API.",
+        error: "Eye could not reach the Intelligence API.",
       });
     }
   }
@@ -149,17 +189,43 @@ export default function Home() {
         </div>
       </header>
 
-      <section className="search-panel" aria-label="Domain search">
+      <section className="search-panel" aria-label="Intelligence search">
         <form className="search-form" onSubmit={handleSubmit}>
-          <label htmlFor="domain-search">Domain</label>
+          <div className="search-heading">
+            <label htmlFor="intelligence-search">{searchLabel}</label>
+            <div className="search-type-tabs" aria-label="Search type">
+              <button
+                type="button"
+                className={searchType === "domain" ? "active" : ""}
+                aria-pressed={searchType === "domain"}
+                onClick={() => {
+                  setSearchType("domain");
+                  setQuery({ status: "idle", result: null, error: null });
+                }}
+              >
+                Domain
+              </button>
+              <button
+                type="button"
+                className={searchType === "ip" ? "active" : ""}
+                aria-pressed={searchType === "ip"}
+                onClick={() => {
+                  setSearchType("ip");
+                  setQuery({ status: "idle", result: null, error: null });
+                }}
+              >
+                IP
+              </button>
+            </div>
+          </div>
           <div className="search-row">
             <input
-              id="domain-search"
-              name="domain"
+              id="intelligence-search"
+              name="query"
               type="text"
-              value={domain}
-              onChange={(event) => setDomain(event.target.value)}
-              placeholder="example.com"
+              value={searchValue}
+              onChange={(event) => setSearchValue(event.target.value)}
+              placeholder={searchPlaceholder}
               autoComplete="off"
               spellCheck={false}
             />
@@ -172,48 +238,63 @@ export default function Home() {
 
       {query.status === "loading" ? <LoadingState /> : null}
       {query.status === "error" ? <ErrorState message={query.error} /> : null}
-      {!hasResult && query.status === "idle" ? <EmptyState /> : null}
+      {!hasResult && query.status === "idle" ? <EmptyState searchType={searchType} /> : null}
 
-      {hasResult ? <DashboardResult result={query.result} /> : null}
+      {hasResult && query.searchType === "domain" ? (
+        <DomainDashboardResult result={query.result as DomainAnalysis} />
+      ) : null}
+      {hasResult && query.searchType === "ip" ? (
+        <IpDashboardResult result={query.result as IpAnalysis} />
+      ) : null}
 
       <footer className="footer">A product by DrPinnacle</footer>
     </main>
   );
 }
 
-function DashboardResult({ result }: { result: DomainAnalysis }) {
+function RiskCard({ result, subject }: { result: DomainAnalysis | IpAnalysis; subject: string }) {
   const createdAt = new Intl.DateTimeFormat("en", {
     dateStyle: "medium",
     timeStyle: "short",
   }).format(new Date(result.created_at));
 
   return (
+    <section className="score-card" aria-labelledby="risk-heading">
+      <div>
+        <p className="section-kicker">Risk</p>
+        <h2 id="risk-heading">{result.risk.level}</h2>
+      </div>
+      <div className={`score-ring risk-${result.risk.level.toLowerCase()}`}>
+        {result.risk.score}
+      </div>
+      <div className="score-details">
+        <span>Confidence {result.risk.confidence ?? 100}%</span>
+        <span>Report {result.report_id}</span>
+        <span>{createdAt}</span>
+      </div>
+      <ListBlock
+        items={[...result.risk.reasons, ...(result.risk.reliability_notes ?? [])]}
+        emptyLabel={`No risk reasons or reliability notes returned for ${subject}.`}
+      />
+    </section>
+  );
+}
+
+function SummaryCard({ result, title }: { result: DomainAnalysis | IpAnalysis; title: string }) {
+  return (
+    <section className="summary-card" aria-labelledby="summary-heading">
+      <p className="section-kicker">Summary</p>
+      <h2 id="summary-heading">{title}</h2>
+      <p>{result.summary}</p>
+    </section>
+  );
+}
+
+function DomainDashboardResult({ result }: { result: DomainAnalysis }) {
+  return (
     <div className="results-grid">
-      <section className="score-card" aria-labelledby="risk-heading">
-        <div>
-          <p className="section-kicker">Risk</p>
-          <h2 id="risk-heading">{result.risk.level}</h2>
-        </div>
-        <div className={`score-ring risk-${result.risk.level.toLowerCase()}`}>
-          {result.risk.score}
-        </div>
-        <div className="score-details">
-          <span>Confidence {result.risk.confidence ?? 100}%</span>
-          <span>Report {result.report_id}</span>
-          <span>{createdAt}</span>
-        </div>
-        <ListBlock
-          items={[...result.risk.reasons, ...(result.risk.reliability_notes ?? [])]}
-          emptyLabel="No risk reasons or reliability notes returned."
-        />
-      </section>
-
-      <section className="summary-card" aria-labelledby="summary-heading">
-        <p className="section-kicker">Summary</p>
-        <h2 id="summary-heading">{result.domain}</h2>
-        <p>{result.summary}</p>
-      </section>
-
+      <RiskCard result={result} subject={result.domain} />
+      <SummaryCard result={result} title={result.domain} />
       <Section title="DNS Records">
         <div className="dns-grid">
           {dnsRecordTypes.map((type) => (
@@ -251,17 +332,42 @@ function DashboardResult({ result }: { result: DomainAnalysis }) {
       </Section>
 
       <Section title="Source Status">
-        <div className="source-list">
-          {result.sources.map((source) => (
-            <article className="source-item" key={source.name}>
-              <div>
-                <h3>{source.name}</h3>
-                <p>{source.error ?? source.error_type ?? "Source completed."}</p>
-              </div>
-              <span className={`status-pill status-${source.status}`}>{source.status}</span>
-            </article>
-          ))}
-        </div>
+        <SourceStatusList sources={result.sources} />
+      </Section>
+    </div>
+  );
+}
+
+function IpDashboardResult({ result }: { result: IpAnalysis }) {
+  return (
+    <div className="results-grid">
+      <RiskCard result={result} subject={result.ip} />
+      <SummaryCard result={result} title={`${result.ip} IPv${result.ip_version}`} />
+
+      <Section title="Reverse DNS">
+        <ListBlock
+          items={result.reverse_dns.ptr_records}
+          emptyLabel="No PTR records returned."
+        />
+      </Section>
+
+      <Section title="Network Enrichment">
+        <KeyValueData
+          data={{
+            asn: result.network.asn,
+            organization: result.network.organization,
+            network: result.network.network,
+            classification: result.network.classification,
+            source: result.network.source,
+            note: result.network.note,
+            ...result.network.attributes,
+          }}
+          emptyLabel="No network enrichment returned."
+        />
+      </Section>
+
+      <Section title="Source Status">
+        <SourceStatusList sources={result.sources} />
       </Section>
     </div>
   );
@@ -302,6 +408,26 @@ function ListBlock({ items, emptyLabel }: { items: string[]; emptyLabel: string 
         <li key={`${item}-${index}`}>{item}</li>
       ))}
     </ul>
+  );
+}
+
+function SourceStatusList({ sources }: { sources: SourceStatusItem[] }) {
+  if (sources.length === 0) {
+    return <p className="empty-copy">No source status returned.</p>;
+  }
+
+  return (
+    <div className="source-list">
+      {sources.map((source) => (
+        <article className="source-item" key={source.name}>
+          <div>
+            <h3>{source.name}</h3>
+            <p>{source.error ?? source.error_type ?? "Source completed."}</p>
+          </div>
+          <span className={`status-pill status-${source.status}`}>{source.status}</span>
+        </article>
+      ))}
+    </div>
   );
 }
 
@@ -348,11 +474,14 @@ function ErrorState({ message }: { message: string }) {
   );
 }
 
-function EmptyState() {
+function EmptyState({ searchType }: { searchType: SearchType }) {
   return (
     <section className="state-panel">
       <strong>Ready</strong>
-      <p>Enter a domain to generate the first local Domain Intelligence report.</p>
+      <p>
+        Enter {searchType === "domain" ? "a domain" : "an IP address"} to generate a local{" "}
+        {searchType === "domain" ? "Domain" : "IP"} Intelligence report.
+      </p>
     </section>
   );
 }
