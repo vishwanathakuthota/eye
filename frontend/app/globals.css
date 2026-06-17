@@ -139,11 +139,45 @@ h1 {
   gap: 10px;
 }
 
+.search-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+
 .search-form label {
   color: var(--muted);
   font-size: 13px;
   font-weight: 700;
   text-transform: uppercase;
+}
+
+.search-type-tabs {
+  display: inline-grid;
+  grid-template-columns: repeat(2, minmax(72px, 1fr));
+  gap: 4px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-muted);
+  padding: 4px;
+}
+
+.search-type-tabs button {
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 800;
+  min-height: 34px;
+  padding: 0 12px;
+}
+
+.search-type-tabs button.active {
+  background: var(--surface);
+  color: var(--accent-strong);
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.12);
 }
 
 .search-row {
@@ -485,6 +519,7 @@ h1 {
   }
 
   .topbar,
+  .search-heading,
   .source-item {
     display: grid;
   }
