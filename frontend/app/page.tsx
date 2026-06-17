@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, ReactNode, useMemo, useState } from "react";
+import { FormEvent, ReactNode, useCallback, useEffect, useMemo, useState } from "react";
 
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000/api/v1";
@@ -88,6 +88,29 @@ type IpAnalysis = {
   created_at: string;
 };
 
+type ReportSummary = {
+  report_id: string;
+  type: SearchType;
+  target: string;
+  risk_level: RiskLevel;
+  risk_score: number;
+  created_at: string;
+};
+
+type ReportList = {
+  items: ReportSummary[];
+  limit: number;
+  offset: number;
+  total: number;
+};
+
+type ReportDetail = {
+  report_id: string;
+  type: SearchType;
+  target: string;
+  payload: DomainAnalysis | IpAnalysis;
+};
+
 type CertificateFinding = {
   common_name: string | null;
   name_value: string;
@@ -110,6 +133,13 @@ type QueryState =
   | { status: "success"; result: DomainAnalysis | IpAnalysis; error: null; searchType: SearchType }
   | { status: "error"; result: null; error: string };
 
+type ReportsState = {
+  status: "loading" | "success" | "error";
+  items: ReportSummary[];
+  error: string | null;
+  selectedReportId: string | null;
+};
+
 const dnsRecordTypes: DnsRecordType[] = ["A", "AAAA", "MX", "TXT", "NS", "CNAME"];
 
 export default function Home() {
@@ -120,6 +150,12 @@ export default function Home() {
     result: null,
     error: null,
   });
+  const [reports, setReports] = useState<ReportsState>({
+    status: "loading",
+    items: [],
+    error: null,
+    selectedReportId: null,
+  });
 
   const normalizedQuery = useMemo(() => {
     const value = searchValue.trim();
@@ -128,6 +164,46 @@ export default function Home() {
   const hasResult = query.status === "success";
   const searchLabel = searchType === "domain" ? "Domain" : "IP address";
   const searchPlaceholder = searchType === "domain" ? "example.com" : "8.8.8.8";
+
+  const fetchRecentReports = useCallback(async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/reports?limit=10&offset=0`, {
+        method: "GET",
+        headers: {
+          Accept: "application/json",
+        },
+      });
+      const body = (await response.json()) as ApiResponse<ReportList>;
+
+      if (!response.ok || !body.success) {
+        setReports({
+          status: "error",
+          items: [],
+          error: body.error?.message ?? "Recent reports could not be loaded.",
+          selectedReportId: null,
+        });
+        return;
+      }
+
+      setReports({
+        status: "success",
+        items: body.data.items,
+        error: null,
+        selectedReportId: null,
+      });
+    } catch {
+      setReports({
+        status: "error",
+        items: [],
+        error: "Eye could not reach the report history API.",
+        selectedReportId: null,
+      });
+    }
+  }, []);
+
+  useEffect(() => {
+    void fetchRecentReports();
+  }, [fetchRecentReports]);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -171,12 +247,67 @@ export default function Home() {
       }
 
       setQuery({ status: "success", result: body.data, error: null, searchType });
+      void fetchRecentReports();
     } catch {
       setQuery({
         status: "error",
         result: null,
         error: "Eye could not reach the Intelligence API.",
       });
+    }
+  }
+
+  async function handleReportSelect(report: ReportSummary) {
+    setReports((current) => ({
+      ...current,
+      selectedReportId: report.report_id,
+      error: null,
+    }));
+    setQuery({ status: "loading", result: null, error: null });
+
+    try {
+      const response = await fetch(
+        `${API_BASE_URL}/reports/${encodeURIComponent(report.report_id)}`,
+        {
+          method: "GET",
+          headers: {
+            Accept: "application/json",
+          },
+        },
+      );
+      const body = (await response.json()) as ApiResponse<ReportDetail>;
+
+      if (!response.ok || !body.success) {
+        setQuery({
+          status: "error",
+          result: null,
+          error: body.error?.message ?? "Report could not be loaded.",
+        });
+        setReports((current) => ({
+          ...current,
+          selectedReportId: null,
+        }));
+        return;
+      }
+
+      setSearchType(body.data.type);
+      setSearchValue(body.data.target);
+      setQuery({
+        status: "success",
+        result: body.data.payload,
+        error: null,
+        searchType: body.data.type,
+      });
+    } catch {
+      setQuery({
+        status: "error",
+        result: null,
+        error: "Eye could not reach the report detail API.",
+      });
+      setReports((current) => ({
+        ...current,
+        selectedReportId: null,
+      }));
     }
   }
 
@@ -236,6 +367,8 @@ export default function Home() {
         </form>
       </section>
 
+      <RecentReportsPanel reports={reports} onSelect={handleReportSelect} />
+
       {query.status === "loading" ? <LoadingState /> : null}
       {query.status === "error" ? <ErrorState message={query.error} /> : null}
       {!hasResult && query.status === "idle" ? <EmptyState searchType={searchType} /> : null}
@@ -252,11 +385,63 @@ export default function Home() {
   );
 }
 
+function RecentReportsPanel({
+  reports,
+  onSelect,
+}: {
+  reports: ReportsState;
+  onSelect: (report: ReportSummary) => void;
+}) {
+  const isLoading = reports.status === "loading";
+
+  return (
+    <section className="recent-reports" aria-labelledby="recent-reports-heading">
+      <div className="panel-heading">
+        <div>
+          <p className="section-kicker">History</p>
+          <h2 id="recent-reports-heading">Recent Reports</h2>
+        </div>
+        {isLoading ? <span className="history-status">Loading</span> : null}
+      </div>
+
+      {reports.status === "error" ? (
+        <p className="empty-copy">{reports.error}</p>
+      ) : null}
+
+      {reports.status !== "error" && reports.items.length === 0 && !isLoading ? (
+        <p className="empty-copy">No reports have been generated yet.</p>
+      ) : null}
+
+      {reports.items.length > 0 ? (
+        <div className="report-list">
+          {reports.items.map((report) => (
+            <button
+              type="button"
+              className="report-row"
+              key={report.report_id}
+              onClick={() => onSelect(report)}
+              disabled={reports.selectedReportId === report.report_id}
+            >
+              <span className="report-main">
+                <strong>{report.target}</strong>
+                <span>{report.report_id}</span>
+              </span>
+              <span className="report-meta">
+                <span>{report.type}</span>
+                <span>{report.risk_level}</span>
+                <span>{report.risk_score}</span>
+                <span>{formatDate(report.created_at)}</span>
+              </span>
+            </button>
+          ))}
+        </div>
+      ) : null}
+    </section>
+  );
+}
+
 function RiskCard({ result, subject }: { result: DomainAnalysis | IpAnalysis; subject: string }) {
-  const createdAt = new Intl.DateTimeFormat("en", {
-    dateStyle: "medium",
-    timeStyle: "short",
-  }).format(new Date(result.created_at));
+  const createdAt = formatDate(result.created_at);
 
   return (
     <section className="score-card" aria-labelledby="risk-heading">
@@ -504,6 +689,13 @@ function formatValue(value: unknown): string {
   }
 
   return String(value);
+}
+
+function formatDate(value: string) {
+  return new Intl.DateTimeFormat("en", {
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(new Date(value));
 }
 
 function titleToId(title: string) {

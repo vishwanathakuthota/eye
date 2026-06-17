@@ -18,6 +18,7 @@ class IpAnalysis(Base):
     ip_version: Mapped[int] = mapped_column(Integer)
     risk_score: Mapped[int] = mapped_column(Integer)
     risk_level: Mapped[str] = mapped_column(String(16))
+    risk: Mapped[dict[str, object] | None] = mapped_column(JSON, nullable=True)
     summary: Mapped[str] = mapped_column(Text)
     reverse_dns: Mapped[dict[str, object]] = mapped_column(JSON)
     network: Mapped[dict[str, object]] = mapped_column(JSON)

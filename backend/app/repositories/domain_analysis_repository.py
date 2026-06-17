@@ -16,6 +16,7 @@ class DomainAnalysisRepository:
             domain=result.domain,
             risk_score=result.risk.score,
             risk_level=result.risk.level,
+            risk=result.risk.model_dump(mode="json"),
             summary=result.summary,
             dns=result.dns.model_dump(mode="json"),
             rdap=result.rdap,
