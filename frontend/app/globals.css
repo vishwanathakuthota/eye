@@ -74,6 +74,22 @@ h2,
 h3,
 p {
   overflow-wrap: anywhere;
+.shell {
+  min-height: 100vh;
+  display: grid;
+  grid-template-rows: 1fr auto;
+  align-items: center;
+  padding: 48px 24px;
+}
+
+.intro {
+  width: min(720px, 100%);
+  justify-self: center;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #ffffff;
+  padding: 40px;
+  text-align: center;
 }
 
 h1 {
@@ -465,6 +481,22 @@ h1 {
   .dns-grid,
   .key-value-item {
     grid-template-columns: 1fr;
+.footer {
+  justify-self: center;
+  margin-top: 32px;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.5;
+  text-align: center;
+}
+
+@media (max-width: 520px) {
+  .shell {
+    padding: 36px 18px 28px;
+  }
+
+  .intro {
+    padding: 28px;
   }
 
   .search-row button {
@@ -475,5 +507,9 @@ h1 {
   .score-ring {
     width: 104px;
     height: 104px;
+  }
+
+  .footer {
+    font-size: 13px;
   }
 }
